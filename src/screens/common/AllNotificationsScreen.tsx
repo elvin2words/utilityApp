@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { format, parseISO } from "date-fns";
 import LoadingScreen from "@/src/components/LoadingScreen";
 
-import mockNotifs from "@/assets/data/mockNotifs.json";
+import mockNotifs from "@/assets/mocks/mockNotifs.json";
 import { useAppStore } from "@/src/stores/appStore";
 
 

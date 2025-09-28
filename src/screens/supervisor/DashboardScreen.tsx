@@ -22,8 +22,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityLog } from "@/src/shared/schema";
 import { Fault,  } from "@/src/types/faults";
 
-import mockFaults from "@/assets/data/mockFaults.json";
-import mockActivities from "@/assets/data/mockActivities.json";
+import mockFaults from "@/assets/mocks/mockFaults.json";
+import mockActivities from "@/assets/mocks/mockActivities.json";
 
 import { formatDateTime, formatTimeAgo } from "@/src/lib/utils";
 import { API_BASE_URL } from "@/src/lib/constants";

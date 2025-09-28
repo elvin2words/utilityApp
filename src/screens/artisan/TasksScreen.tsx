@@ -19,7 +19,7 @@ import { useTaskActions } from "@/src/hooks/useTaskActions";
 import { useThemeStore } from "@/src/lib/themeStore";
 import { getThemeByMode, AppTheme } from "@/src/lib/colors";
 
-import mockFaults from "@/assets/data/mockFaults.json"; // mock fallback
+import mockFaults from "@/assets/mocks/mockFaults.json"; // mock fallback
 import { useAppStore } from "@/src/stores/appStore";
 import { BOTTOM_NAV_SAFE } from "@/src/utils/misc";
 

@@ -1,4 +1,3 @@
-
 # Utility Field Deployment and Fault Management System
 
 The **Utility Field Deployment and Fault Management System** is a comprehensive solution designed to optimize how utility providers detect, respond to, and resolve faults across electricity, water, gas, and telecommunications networks. It combines real-time fault reporting, intelligent task assignment, and mobile-first field operations to ensure fast and efficient service restoration.
@@ -22,3 +21,55 @@ The **Utility Field Deployment and Fault Management System** is a comprehensive 
 * Higher customer satisfaction and service reliability
 
 This system empowers utility companies to respond proactively, reduce service interruptions, and maintain transparency across field operations.
+
+
+## Project Setup
+
+This project uses **React Native + Expo**, TypeScript, and Git LFS for large assets.
+
+### Prerequisites
+
+* Node.js 18+
+* Expo CLI (`npm install -g expo-cli`)
+* Git & Git LFS (`git lfs install`)
+
+### Clone Repository
+
+```bash
+
+gitlfsinstall
+
+gitclonehttps://github.com/elvin2words/utilityApp.git
+
+cdutilityApp
+
+npminstall
+```
+
+
+
+### Project Structure
+
+App.tsx
+app.config.js
+assets/
+  ├─ fonts/
+  ├─ lottie/
+  └─ icons/
+src/
+  ├─ api/
+  ├─ components/
+  ├─ context/
+  ├─ hooks/
+  ├─ lib/
+  ├─ navigation/
+  ├─ screens/
+  ├─ shared/
+  ├─ stores/
+  ├─ types/
+  └─ utils/
+credentials/
+docs/
+babel.config.js
+tsconfig.json
+package.json

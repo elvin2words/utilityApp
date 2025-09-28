@@ -32,7 +32,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "react-native-feather";
 import { useAppStore } from "@/src/stores/appStore";
 
-import mockFaults from "@/assets/data/mockFaults.json"; 
+import mockFaults from "@/assets/mocks/mockFaults.json"; 
 
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {

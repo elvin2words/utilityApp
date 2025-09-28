@@ -34,8 +34,8 @@ import {
   HeatmapLegendProps,
 } from "@/src/lib/constants";
 
-import mockFaults from "@/assets/data/mockFaults.json";
-import facilitiesData from "@/assets/data/facilities.json";
+import mockFaults from "@/assets/mocks/mockFaults.json";
+import facilitiesData from "@/assets/mocks/facilities.json";
 
 import { useGeolocationOnce } from "@/src/hooks/useGeolocationTracking";
 import { useNetworkStatus } from "@/src/hooks/useNetworkStatus";

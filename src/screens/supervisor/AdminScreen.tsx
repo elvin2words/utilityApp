@@ -34,7 +34,7 @@ import {
   mockShifts,
   mockSchedules,
   mockActivityLogs,
-} from "@/assets/data/mockAdminData";
+} from "@/assets/mocks/mockAdminData";
 
 
 

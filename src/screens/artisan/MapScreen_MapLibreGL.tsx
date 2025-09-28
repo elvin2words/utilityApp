@@ -17,7 +17,7 @@ import { Plus, Minus, ChevronDown, Compass, Locate, MapPin, Crosshair, Navigatio
 
 import { Fault } from "@/src/types/faults";
 
-import mockFaults from "@/assets/data/mockFaults.json";
+import mockFaults from "@/assets/mocks/mockFaults.json";
 
 // import SuperCluster from 'react-native-maps-super-cluster';
 // import MapboxGL from "@rnmapbox/maps";

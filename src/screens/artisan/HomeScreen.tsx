@@ -24,8 +24,8 @@ import { SystemNotification } from "@/src/types/notification"; // unify types
 import { useThemeStore } from "@/src/lib/themeStore";
 import { getThemeByMode, AppTheme } from "@/src/lib/colors";
 
-import mockFaults from "@/assets/data/mockFaults.json";
-import mockNotifs from "@/assets/data/mockNotifs.json";
+import mockFaults from "@/assets/mocks/mockFaults.json";
+import mockNotifs from "@/assets/mocks/mockNotifs.json";
 import { Notification } from "@/src/shared/schema";
 import { BOTTOM_NAV_SAFE, GAP } from "@/src/utils/misc";
 
