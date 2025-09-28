@@ -1,0 +1,1 @@
+offrem List key filesdir /s /b *.ts *.tsx *.config.js package.json app.json tsconfig.json  List folders, excluding node_modules, android, ios, build, dist, .git, .expo, .expo-sharedfor /f "delims=" %%D in ('dir /s /b /ad | findstr /v /i "node_modules android ios build dist .git .expo .expo-shared"') do echo %%D  
