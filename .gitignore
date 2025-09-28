@@ -45,6 +45,11 @@ yarn-error.*
 credentials/
 docs/
 misc/
+assets/data/
+
+# Credentials
+credentials.json
+
 
 assets/data/*.xlsx
 assets/data/*.json
