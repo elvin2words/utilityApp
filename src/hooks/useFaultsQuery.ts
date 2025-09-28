@@ -24,7 +24,7 @@ import { getCachedJobs, cacheJobs } from "@/src/lib/jobCache";
 
 import { Fault, FaultStatus, FaultSeverity } from "@/src/types/faults";
 
-import mockFaults from "@/assets/data/mockFaults.json";
+import mockFaults from "@/assets/mocks/mockFaults.json";
 
 import {
   addPendingAssignment,

@@ -67,6 +67,8 @@ import {
 
 import Toast from "react-native-toast-message";
 
+import { useAppStore } from "@/src/stores/appStore";
+
 
 
 type LayerState = Record<LayerKey, { label: string; enabled: boolean }>;
@@ -180,6 +182,8 @@ export default function MapScreen() {
 
   const [popupLayer, setPopupLayer] = useState<LayerKey | null>(null);
   
+  const { showMockData } = useAppStore();
+
   // Animation
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -221,8 +225,13 @@ export default function MapScreen() {
 
 
   // For now use assets — you'll want an API hook for real facilities
-  const facilities: Facility = facilitiesData as unknown as Facility;
-  const facilitiesss = facilitiesData;
+  // const facilities: Facility | [] = showMockData ? (facilitiesData as unknown as Facility) : [];
+  const facilities: Facility = showMockData 
+    ? (facilitiesData as unknown as Facility) 
+    : { transformers: [], overheads: [], meters: [] };
+
+  // const facilities: Facility = facilitiesData as unknown as Facility;
+  const facilitiesss = showMockData ? facilitiesData : [];
   
   const normalizedFacilities = [
     ...(facilities?.transformers ?? []).map((f) => ({...f, assetCateg: "transformers",})),
@@ -429,7 +438,7 @@ export default function MapScreen() {
 
 
   // const faultsData = filteredFaults;
-  const faultsData = mockFaults;
+  const faultsData = showMockData ? mockFaults : [];
 
   const faults = useMemo(() => {
     const status = layerFilters.faultjobs as StatusKey;

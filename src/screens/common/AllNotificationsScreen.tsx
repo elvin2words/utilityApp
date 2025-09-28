@@ -16,6 +16,7 @@ import LoadingScreen from "@/src/components/LoadingScreen";
 
 import mockNotifs from "@/assets/mocks/mockNotifs.json";
 import { useAppStore } from "@/src/stores/appStore";
+import { GAP } from "@/src/utils/misc";
 
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -172,25 +173,27 @@ export default function AllNotificationsScreen() {
   const sections = Object.entries(grouped).filter(([, items]) => items.length > 0);
 
   return (
-    <ScrollView
-      // refreshControl={
-      //   <RefreshControl refreshing={isFetching} onRefresh={refetch} />
-      // }
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.container}
-    >
-      {/* <Text style={styles.screenTitle}>All Notifications</Text> */}
+    // <ScrollView
+    //   // refreshControl={
+    //   //   <RefreshControl refreshing={isFetching} onRefresh={refetch} />
+    //   // }
+    //   showsVerticalScrollIndicator={false}
+    //   contentContainerStyle={styles.container}
+    // >
+      // {/* <Text style={styles.screenTitle}>All Notifications</Text> */}
+    <View style={styles.container}>
   
       {/* Filters row (kept at top inside container) */}
       <View style={styles.filters}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <FilterButton label="All Types" active={filterType === null} onPress={() => setFilterType(null)} />
           {Object.entries(typeLabels).map(([key, { label }]) => (
-              <FilterButton 
-                key={key} 
-                label={label} 
-                active={filterType === key} 
-                onPress={() => setFilterType(key)} />
+            <FilterButton 
+              key={key} 
+              label={label} 
+              active={filterType === key} 
+              onPress={() => setFilterType(key)} 
+            />
           ))}
 
           <FilterButton label="All Severities" active={filterSeverity === null} onPress={() => setFilterSeverity(null)} />
@@ -211,8 +214,8 @@ export default function AllNotificationsScreen() {
 
       {/* Loading */}
       {isLoading && localNotifications.length === 0 ? (
-        // <View style={styles.emptyBox}>
-        <View>
+        <View style={styles.loadingContainer}>
+        {/* <View> */}
           {/* <Ionicons name="notifications-outline" size={66} color="#9ca3af" style={{ marginBottom: 10 }} /> */}
           <LoadingScreen message="Notifications Loading ..." />
         </View>
@@ -305,7 +308,8 @@ export default function AllNotificationsScreen() {
         </TouchableWithoutFeedback>
       </Modal>
       <Toast />
-    </ScrollView>
+    </View>
+  // {/* </ScrollView> */}
   );
 }
 
@@ -321,9 +325,9 @@ function FilterButton({ label, active, onPress }: { label: string; active: boole
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
-    padding: 16,
-    paddingBottom: 60,
+    // backgroundColor: "#f9fafb",
+    padding: GAP,
+    // paddingBottom: 60,
   },
     // Filters
   // filters: {
@@ -387,4 +391,16 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 22, fontWeight: "700", marginTop: 12, color: "#374151" },
   emptySubtitle: { fontSize: 14, color: "#6b7280", textAlign: "center", marginTop: 6 },
+
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    // height: 400, // optional: ensures some minimum height if ScrollView shrinks
+    paddingHorizontal: 24,
+
+  },
+
+
 });

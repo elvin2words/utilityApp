@@ -2,8 +2,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDashboardData, getFaults, getActivityLogs } from '@/src/api/supervisorApi';
-import mockFaults from '@/assets/data/mockFaults.json';
-import mockActivities from '@/assets/data/mockActivities.json';
+import mockFaults from '@/assets/mocks/mockFaults.json';
+import mockActivities from '@/assets/mocks/mockActivities.json';
 import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
 
 const FAULTS_CACHE_KEY = 'ufms_faults_cache_v1';
