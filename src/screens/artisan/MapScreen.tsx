@@ -35,6 +35,7 @@ import { formatLabel, getSeverityColor } from "@/src/utils/misc";
 import { openMapsToFault } from "@/src/utils/navigation";
 
 import LoadingScreen from "@/src/components/LoadingScreen";
+import { ClusterMarker } from "@/src/components/ui/maps/clusterMarker";
 
 
 
@@ -151,13 +152,13 @@ export default function MapScreen() {
   // Compute clusters for visible region
   const clusters = useMemo(() => {
     if (!mapRegion) return [];
-    const bounds: [number, number, number, number] = [
+    const bounds = [
       mapRegion.longitude - mapRegion.longitudeDelta / 2, // west
       mapRegion.latitude - mapRegion.latitudeDelta / 2,  // south
       mapRegion.longitude + mapRegion.longitudeDelta / 2, // east
       mapRegion.latitude + mapRegion.latitudeDelta / 2,  // north
-    ];
-    const zoom = Math.round(Math.log2(360 / mapRegion.longitudeDelta));
+    ] as [number, number, number, number];
+    const zoom = regionToZoom(mapRegion);
     return clusterIndex.getClusters(bounds, zoom);
   }, [clusterIndex, mapRegion]);
 
@@ -192,45 +193,90 @@ export default function MapScreen() {
   //   return clusters;
   // }, [filteredFaultJobs, mapRegion]);
 
-  const handleLocateMe = useCallback(async () => {
-    scale.value = withSpring(0.95);
-    try {
-      if (errorMsg) throw new Error(errorMsg);
-      const waitForLocation = new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error("Location request timed out")), 10000);
-        const checkLocation = () => {
-          if (userLocation) {
-            clearTimeout(timeout);
-            resolve(userLocation);
-          } else setTimeout(checkLocation, 500);
-        };
-        checkLocation();
-      });
-      const coords = await waitForLocation;
-      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 });
-    } catch (err: any) {
-      Alert.alert("Location issue", err?.message ?? "Could not retrieve location.");
-    } finally {
-      scale.value = withSpring(1);
+  const renderMarkers = (
+    clusters: any[],
+    clusterIndex: any,
+    setSelectedFaultJob: (job: any) => void,
+    mapRef: React.RefObject<MapView>
+  ) => {
+    return clusters.map((c) => {
+      const [longitude, latitude] = c.geometry.coordinates;
+      const { c: isCluster, point_count } = c.properties;
+
+      if (c.properties.cluster) {
+        const clusterId = c.id;
+
+        const leaves = clusterIndex.getLeaves(clusterId, 1); // first leaf for type
+        const firstFault = leaves[0]?.properties;
+
+        return (
+          <Marker
+            key={`cluster-${clusterId}`}
+            coordinate={{ latitude, longitude }}
+            // onPress={() => handleClusterPress(clusterId, cluster)}
+            onPress={() => {
+              const expansionZoom = clusterIndex.getClusterExpansionZoom(clusterId);
+              mapRef.current?.animateCamera({
+                center: { latitude, longitude },
+                zoom: expansionZoom * 1.1,
+              });
+            }}
+          >
+            <ClusterMarker
+              count={c.properties.point_count}
+              representativeType={firstFault?.type ?? "F"}
+              hasCritical={leaves.some((l: any) => l.properties.severity === "critical")}
+              hasMajor={leaves.some((l: any) => l.properties.severity === "major")}
+              hasMinor={leaves.some((l: any) => l.properties.severity === "minor")}
+            />
+          </Marker>
+        );
+      } else {
+        const fault = c.properties as Fault;
+        return (
+          <Marker
+            key={`point-${fault.id}`}
+            coordinate={{ latitude, longitude }}
+            pinColor={fault.severity === "critical" ? "red" : "yellow"}
+            title={`${fault.title ?? "Fault"} @ ${fault.locationName ?? "this location"}`}
+            description={`Possible ${fault.cause ?? "unknown"} | ${fault.source ?? "unknown"} | ${fault.zone ?? "Unknown"} Zone`}
+            onPress={() => {
+              setSelectedFaultJob(fault.id);
+              mapRef.current?.animateToRegion(
+                {
+                  latitude: fault.coords.latitude,
+                  longitude: fault.coords.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                },
+                500
+              );
+            }}
+          />
+        );
+      }
+    });
+  };
+
+  const memoizedMarkers = useMemo(
+    () => renderMarkers(clusters, clusterIndex, setSelectedFaultJob, mapRef),
+    [clusters, clusterIndex, setSelectedFaultJob, mapRef]
+  );
+
+  const handleLocateMe = useCallback(() => {
+    if (!userLocation) {
+      Alert.alert("Location issue", errorMsg ?? "Could not retrieve location.");
+      return;
     }
+    scale.value = withSpring(0.95);
+    mapRef.current?.animateToRegion({
+      ...userLocation,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    });
+    setTimeout(() => (scale.value = withSpring(1)), 300);
   }, [userLocation, errorMsg, scale]);
-  // const handleLocateMe = useCallback(async () => {
-  //   scale.value = withSpring(0.95);
-  //   try {
-  //     if (errorMsg) throw new Error(errorMsg);
-  //     if (userLocation) {
-  //       mapRef.current?.animateToRegion({
-  //         ...userLocation,
-  //         latitudeDelta: 0.01,
-  //         longitudeDelta: 0.01,
-  //       });
-  //     }
-  //   } catch (err: any) {
-  //     Alert.alert("Location issue", err?.message ?? "Could not retrieve location.");
-  //   } finally {
-  //     scale.value = withSpring(1);
-  //   }
-  // }, [userLocation, errorMsg, scale]);
+
 
   const initialRegion = useMemo(
     () => ({
@@ -258,10 +304,10 @@ export default function MapScreen() {
     mapRef.current.animateToRegion(region, 300);
   }, [filteredFaultJobs, userLocation]);
 
-  useEffect(() => {
-    const t = setTimeout(autoFitMap, 150); // small delay for map to render before fitting
-    return () => clearTimeout(t);
-  }, [autoFitMap]);
+  // useEffect(() => {
+  //   const t = setTimeout(autoFitMap, 150); // small delay for map to render before fitting
+  //   return () => clearTimeout(t);
+  // }, [autoFitMap]);
 
   const fitToFilteredData = useCallback(
     (includeUser = false) => {
@@ -373,6 +419,7 @@ export default function MapScreen() {
                   }
                 }, 300);
               }}
+              // onMapError={() => setTileError(true)}
               showsMyLocationButton={false}
               showsCompass = {false}
               // customMapStyle={mode === "dark" ? mapThemes.dark : mapThemes.light}
@@ -453,9 +500,14 @@ export default function MapScreen() {
                 );
               })} */}
 
-              {/* Render clusters & markers */}
-              {clusters.map((c: any) => {
+              {/* {clusters.map((c: any) => {
                 const [longitude, latitude] = c.geometry.coordinates;
+                const size = Math.min(50, 20 + Math.log(c.properties.point_count) * 8);
+                // const severityColor = clusterHasCritical
+                //   ? "red"
+                //   : clusterHasMajor
+                //     ? "orange"
+                //     : "#2563eb";
 
                 if (c.properties.cluster) {
                   return (
@@ -470,7 +522,11 @@ export default function MapScreen() {
                         });
                       }}
                     >
-                      <View style={styles.clusterMarker}>
+                      
+                      <View style={[
+                        styles.clusterMarker,
+                        { width: size, height: size, borderRadius: size / 2 }
+                      ]}>
                         <Text style={styles.clusterText}>{c.properties.point_count}</Text>
                       </View>
                     </Marker>
@@ -496,7 +552,10 @@ export default function MapScreen() {
                     />
                   );
                 }
-              })}
+              })} */}
+
+              {/* Render clusters & markers */}
+              {memoizedMarkers}
             
               {/* Geofences (render only when zoomed in) */}
               {mapRegion &&
@@ -549,7 +608,11 @@ export default function MapScreen() {
             </View>
 
             {/* Snackbar for tile error */}
-            <Snackbar visible={tileError} onDismiss={() => setTileError(false)} duration={3000}>
+            <Snackbar 
+              visible={tileError} 
+              onDismiss={() => setTileError(false)} 
+              duration={3000}
+            >
               Map tiles failed to load. Showing fallback basemap.
             </Snackbar>            
 
@@ -650,6 +713,11 @@ const styles = StyleSheet.create({
     padding: 5, 
     borderWidth: 2, 
     borderColor: "#78a0c5ff", 
+
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
 
     minWidth: 32,
     minHeight: 32,
