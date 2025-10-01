@@ -21,6 +21,7 @@ import AuditLogsScreen from "@/src/screens/supervisor/AuditLogs";
 import AccountScreen from "@/src/screens/supervisor/AccountScreen";
 import PreferencesScreen from "@/src/screens/supervisor/PreferencesScreen";
 import HelpScreen from "@/src/screens/common/HelpScreen";
+import AboutApp from "@/src/screens/common/AboutApp";
 import DevSettingsScreen from "@/src/screens/dev/DevSettingsScreen";
 
 
@@ -43,7 +44,7 @@ export type SupervisorStackParamList = {
   Preferences: undefined;
   Help: undefined;
   DevSettings: undefined;
-
+  AboutApp: undefined;
 }; 
 
 const Stack = createNativeStackNavigator<SupervisorStackParamList>();
@@ -130,20 +131,25 @@ export default function SupervisorStackNavigator() {
         component={AuditLogsScreen} 
         options={{ title: "AuditLogs" }}
       />   
-      <Stack.Screen
+      {/* <Stack.Screen
         name="Account"
         component={AccountScreen}
         options={{ title: "User Account" }}
-      /> 
-            <Stack.Screen
+      />  */}
+      <Stack.Screen
         name="Preferences"
         component={PreferencesScreen}
         options={{ title: "Preferences" }}
       /> 
-      <Stack.Screen
+      {/* <Stack.Screen
         name="Help"
         component={HelpScreen}
         options={{ title: "Help & Support" }}
+      />  */}
+      <Stack.Screen
+        name="AboutApp"
+        component={AboutApp}
+        options={{ title: "About App" }}
       /> 
       <Stack.Screen
         name="DevSettings"

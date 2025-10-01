@@ -4,18 +4,19 @@ import { User, Team, SLARule, Escalation, Shift, Schedule, ActivityLog } from "@
 
 export const mockUsers: User[] = [
   { id: "u1", name: "Alice Moyo", role: "Engineer", status: "active" },
-  { id: "u2", name: "Tinashe Dube", role: "Supervisor", status: "active" },
-  { id: "u3", name: "Chipo Ndlovu", role: "Dispatcher", status: "inactive" },
-  { id: "u4", name: "Brian Zhou", role: "Engineer", status: "active" },
-  { id: "u5", name: "Rufaro Nyathi", role: "Supervisor", status: "active" },
-  { id: "u6", name: "Tariro Chikafu", role: "Engineer", status: "active" },
-  { id: "u7", name: "Kudzai Mlambo", role: "Technician", status: "active" },
-  { id: "u8", name: "Nomsa Sibanda", role: "Engineer", status: "active" },
+  { id: "u2", name: "Amos Chipfuwamiti", role: "Supervisor", status: "active" },
+  { id: "u3", name: "Henry Landelani Ndlovu", role: "Dispatcher", status: "inactive" },
+  { id: "u4", name: "Blessing Guramatunhu", role: "Artisan", status: "active" },
+  { id: "u5", name: "Brian Zhou", role: "Engineer", status: "active" },
+  { id: "u6", name: "Rufaro Nyathi", role: "Supervisor", status: "active" },
+  { id: "u7", name: "Tariro Chikafu", role: "Engineer", status: "active" },
+  { id: "u8", name: "Nolan Manyuchi", role: "Artisan", status: "active" },
+  { id: "u9", name: "Nomsa Sibanda", role: "Engineer", status: "active" },
 ];
 
 export const mockTeams: Team[] = [
-  { id: "t1", name: "Central Ops", members: ["u1", "u2", "u3"] },
-  { id: "t2", name: "Southern Field Team", members: ["u4", "u5"] },
+  { id: "t1", name: "Chinhoyi Central Ops", members: ["u1", "u2", "u3"] },
+  { id: "t2", name: "Banket Field Team", members: ["u4", "u5"] },
   { id: "t3", name: "Northern Response", members: ["u6", "u7", "u8"] },
 ];
 

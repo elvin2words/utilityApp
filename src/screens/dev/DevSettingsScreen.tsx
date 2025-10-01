@@ -165,7 +165,6 @@ export default function DevSettingsScreen() {
         {Object.entries(developerFlags).map(([key, value]) => (
           <SwitchRow key={key} label1={key + " Off"} label2={key + " On"} value={value} onValueChange={() => toggleFlag(key as any)} />
         ))}
-        <Text style={{ color:  theme.colors.maintext, marginTop: 16 }}>📦 App Version: {Constants.expoConfig?.version}</Text>
       </Section>
 
       {/* API Logs */}
@@ -193,6 +192,9 @@ export default function DevSettingsScreen() {
       <Section title="Exit" colors={theme.colors}>
         <AppButton variant="danger" title="🚪 Logout" onPress={logout} />
       </Section>
+
+      <Text style={{ color:  theme.colors.maintext, marginTop: 16, textAlign:"center" }}>📦 App Version: {Constants.expoConfig?.version}</Text>
+
     </ScrollView>
   );
 }

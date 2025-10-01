@@ -143,7 +143,7 @@ const handleHandlerStateChange = ({ nativeEvent }: any) => {
         >
           <TouchableOpacity style={styles.content} onPress={handlePress}>
             <View style={styles.textSection}>
-              <Text style={styles.message} numberOfLines={2}>
+              <Text style={styles.message} numberOfLines={1}>
                 {notification.message}
               </Text>
               <Text style={styles.timestamp}>
@@ -177,8 +177,9 @@ const handleHandlerStateChange = ({ nativeEvent }: any) => {
             }}
           >
             <Sparkles size={16} color="#fff" style={{ marginRight: 6 }} />
-            <Text style={styles.aiButtonText}>Explore Suggestions</Text>
+            <Text style={styles.aiButtonText}>More from Eddy</Text>
           </TouchableOpacity>
+
 
           <TouchableOpacity
             style={styles.closeButton}

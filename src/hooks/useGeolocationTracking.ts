@@ -75,6 +75,7 @@ export function useGeolocationOnce() {
         return;
       }
       const loc = await Location.getCurrentPositionAsync({});
+      // (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })).coords;
       setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
     })();
   }, []);

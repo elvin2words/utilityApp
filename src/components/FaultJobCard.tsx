@@ -160,7 +160,7 @@ export function FaultCard({
 
       {/* Description */}
       {fault.description && (
-        <Text style={styles.description}>{fault.description}</Text>
+        <Text style={styles.description} numberOfLines={3}>{fault.description}</Text>
       )}
       
       {/* Location + Asset */}
@@ -581,7 +581,11 @@ const styles = StyleSheet.create({
   mediumCard: { backgroundColor: "#F3F4F6", },
   compactCard: { backgroundColor: "#F9FAFB", },
   taskCard: { backgroundColor: "#F9FAFB" },
-  supervisorCard: { borderLeftWidth: 4, borderLeftColor: "#7C3AED", backgroundColor: "#F5F3FF" },
+  supervisorCard: { 
+    // borderLeftWidth: 4, 
+    // borderLeftColor: "#7C3AED", 
+    backgroundColor: "#F5F3FF" 
+  },
 
   activeHighlight: { borderLeftWidth: 4, borderLeftColor: "#2563EB", },
   headerRow: {
@@ -748,7 +752,7 @@ const styles = StyleSheet.create({
   supCard: {
       padding: 14,
       borderRadius: 14,
-      backgroundColor: "#0b1220",
+      // backgroundColor: "#0b1220",
       borderWidth: 1,
       borderColor: "#1f2533",
       marginBottom: 12,

@@ -6,8 +6,10 @@ import { Alert, Animated, Dimensions, Linking, Modal, PanResponder,
 import MapView, { Marker, UrlTile, Circle, LatLng, Polygon, Region } from "react-native-maps";
 import { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import Toast from "react-native-toast-message";
-
+import { Snackbar } from "react-native-paper";
 import NetInfo from "@react-native-community/netinfo";
+
+import Supercluster  from "supercluster";
 
 import BottomSheet from "@gorhom/bottom-sheet";
 
@@ -16,52 +18,39 @@ import { Plus, Minus, ChevronDown, Compass, Locate, MapPin, Crosshair, Navigatio
 
 import { Fault } from "@/src/types/faults";
 
-import mockFaults from "@/assets/mocks/mockFaults.json";
-
-// import SuperCluster from 'react-native-maps-super-cluster';
-// import MapboxGL from "@rnmapbox/maps";
-
-import { useGeolocationOnce, useGeolocationTracking, Coordinates } from '@/src/hooks/useGeolocationTracking';
-import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
-import { getWeather, fetchWeatherImpact } from '@/src/hooks/useWeather';
 import { useFaultsQuery } from "@/src/hooks/useFaultsQuery";
+import { useNetworkStatus } from '@/src/hooks/useNetworkStatus';
+import { useGeolocationOnce, useGeolocationTracking } from '@/src/hooks/useGeolocationTracking';
 
 import { useAuth } from "@/src/lib/auth/AuthContext";
 
-import { FAULT_STATUS_FILTERS, API_BASE_URL, StatusKey } from "@/src/lib/constants";
-import { calculateGeoFenceStatus } from '@/src/lib/utils';
-import { getTravelTime } from '@/src/lib/navigation';
-import { queueMutation, replayQueuedMutations } from "@/src/lib/offlineQueue";
-
-import { getCachedJobs, cacheJobs } from "@/src/lib/jobCache";
-
 import { useThemeStore } from "@/src/lib/themeStore";
 import { getThemeByMode, AppTheme } from "@/src/lib/colors";
-
-import { formatLabel, getSeverityColor } from "@/src/utils/misc";
-import { openMapsToFault } from "@/src/utils/navigation";
-import { getCachedEnrichment, cacheEnrichment } from '@/src/utils/enrichmentCache';
-
-import { 
-  normalizeCoords,
-  width, height, 
-  CONTROL_SIZE, 
-  GAP, 
-  BOTTOM_NAV_SAFE, 
-  EDGE_PADDING,
-  DETAILED_ZOOM_THRESHOLD,  
-  BOTTOM_SHEET_HEIGHT,
-  GEOFENCE_VISIBLE_ZOOM,
-  CLUSTER_VISIBLE_ZOOM
-} from "@/src/utils/misc";
-
-import LoadingScreen from "@/src/components/LoadingScreen";
-
-import Supercluster, { AnyProps, ClusterFeature, PointFeature }  from "supercluster";
+import { FAULT_STATUS_FILTERS, StatusKey, LATITUDE_DELTA, LONGITUDE_DELTA } from "@/src/lib/constants";
 
 import { useAppStore } from "@/src/stores/appStore";
 
+import { CONTROL_SIZE, GAP, EDGE_PADDING, GEOFENCE_VISIBLE_ZOOM, } from "@/src/utils/misc";
+import { formatLabel, getSeverityColor } from "@/src/utils/misc";
+import { openMapsToFault } from "@/src/utils/navigation";
 
+import LoadingScreen from "@/src/components/LoadingScreen";
+
+
+
+
+
+const MAPTILER_KEY = (process.env.MAPTILER_KEY ?? "__MUST_SET__"); 
+
+// ---- Utility: safe async wrapper ----
+async function safeAsync<T>(label: string, fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error(`❌ ${label} error:`, err);
+    return null;
+  }
+}
 
 // Helper: convert latDelta to approximate zoom
 function regionToZoom(region: Region): number {
@@ -76,15 +65,12 @@ export default function MapScreen() {
   const {isOnline} = useNetworkStatus();
   const {userLocation, errorMsg} = useGeolocationOnce();
   // const {userLocation, errorMsg} = useGeolocationTracking(false, false);
+
   const [mapRegion, setMapRegion] = useState<Region | null>(null);
 
   const [selectedFilter, setSelectedFilter] = useState<StatusKey>("pending");
-  const [selectedFaultJob, setSelectedFaultJob] = useState<Fault | null>(null);
+  const [selectedFaultJob, setSelectedFaultJob] = useState<any | null>(null);
   
-  const [bottomSheetHeight] = useState(new Animated.Value(90));
-  
-  const [refreshing, setRefreshing] = useState(false);
-
   const mode = useThemeStore((s) => s.mode);
   const themeColors: AppTheme = getThemeByMode(mode);
     
@@ -94,86 +80,73 @@ export default function MapScreen() {
   const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const [isZooming, setIsZooming] = useState(false);
+  const [tileError, setTileError] = useState(false);
+  const [bottomSheetHeight] = useState(new Animated.Value(90));
 
   const { showMockData } = useAppStore();
 
 
-  // call fetch Faults hook, others???
+  
+  // call fetch Faults hook
   const { 
-    filteredFaults = mockFaults, 
-    activeFault, 
+    filteredFaults, 
+    activeFaultJob, 
     primaryFault, 
-    refreshFaults = async () => {}, 
+    refreshFaults, 
     loading, 
     error 
   } = useFaultsQuery({
     isOnline,
-    user: user ?? { id: "anon", role: "artisan" as const },
+    // user: user ?? { id: "anon", role: "artisan" as const },
+    user: user!,
     location:userLocation,
-    useMockData:true,
+    useMockData:showMockData,
     selectedFilter:"all"
   } as any);
 
-  // Pull-to-refresh handler
   const handleRefresh = async () => {
     await refreshFaults();
   };
 
   // Filter jobs
-  // const filteredFaultJobs = filteredFaults;
-  const filteredFaultJobs = useMemo(() => {
-    if (showMockData) {
-      return Array.isArray(mockFaults) ? mockFaults : [];
-    }
-    // if no mock data
-    return [];
-  }, [mockFaults, showMockData]);
+  const faultJobs = showMockData 
+  ? ( Array.isArray(filteredFaults) ? filteredFaults : []) 
+  : [];
 
   // Filtered jobs by status
-  // const filteredFaultJobs = useMemo(() => {
-  //   return faultJobs.filter((f) =>
-  //     selectedFilter === "all" ? true : f.status === selectedFilter
-  //   );
-  // }, [faultJobs, selectedFilter]);
+  const filteredFaultJobs = useMemo(() => {
+    return faultJobs.filter((f:any) => selectedFilter === "all" ? true : f.status === selectedFilter );
+  }, [faultJobs, selectedFilter]);
 
   // Convert to GeoJSON for Supercluster
   const points = useMemo(() =>
-    filteredFaults.map((f: Fault) => ({
+    filteredFaultJobs
+      .filter((f) => f.coords)
+      .map((f) => ({
       type: "Feature" as const,
       properties: { ...f, cluster: false },
-      geometry: { type: "Point", coordinates: [f.coords.longitude, f.coords.latitude] },
+      geometry: { type: "Point" as const, coordinates: [f.coords.longitude, f.coords.latitude] },
     })),
-  [filteredFaults]);
+  [filteredFaultJobs]);
 
-
-  // Build Supercluster index
+  // Supercluster index
   const clusterIndex = useMemo(() => {
     const index = new Supercluster({
       radius: 60, // px cluster radius
       maxZoom: 20,
     });
-    index.load(points);
+    try {
+      // ensure points is an array of valid GeoJSON features
+      const safePoints = Array.isArray(points)
+        ? points.filter(p => p && p.geometry && Array.isArray(p.geometry.coordinates) && p.geometry.coordinates.length === 2)
+        : [];
+      index.load(safePoints);
+    } catch (err) {
+      console.error("clusterIndex.load error:", err);
+      // fallback: leave index empty (no clusters) to avoid crashing the app
+    }
     return index;
-  }, [points]);
-
-
-  // ---- Supercluster setup ----
-  // const superclusterIndex = useMemo(() => {
-  //   const points: PointFeature<AnyProps>[] = filteredFaults.map((f: any) => ({
-  //     type: "Feature",
-  //     geometry: {
-  //       type: "Point",
-  //       coordinates: [f.coords.longitude, f.coords.latitude],
-  //     },
-  //     properties: { ...f },
-  //   }));
-
-  //   return Supercluster({
-  //     radius: 60, // px radius of clusters
-  //     maxZoom: 20,
-  //     minZoom: 0,
-  //   }).load(points);
-  // }, []);
+  }, [points]); 
 
   // Compute clusters for visible region
   const clusters = useMemo(() => {
@@ -186,126 +159,109 @@ export default function MapScreen() {
     ];
     const zoom = Math.round(Math.log2(360 / mapRegion.longitudeDelta));
     return clusterIndex.getClusters(bounds, zoom);
-    // return superclusterIndex.getClusters(bounds, zoom);
   }, [clusterIndex, mapRegion]);
 
   // Clustering (simple distance-based)
-  const clusteredJobs = useMemo(() => {
-    if (!mapRegion || mapRegion.latitudeDelta < CLUSTER_VISIBLE_ZOOM) return filteredFaultJobs;
-    const clusters: { latitude: number; longitude: number; count: number }[] = [];
-    // Simple grid-based clustering
-    const gridSize = mapRegion.latitudeDelta / 20;
-    const added = new Set<number>();
+  // const clusteredJobs = useMemo(() => {
+  //   if (!mapRegion || mapRegion.latitudeDelta < CLUSTER_VISIBLE_ZOOM) return filteredFaultJobs;
+  //   const clusters: { latitude: number; longitude: number; count: number }[] = [];
+  //   // Simple grid-based clustering
+  //   const gridSize = mapRegion.latitudeDelta / 20;
+  //   const added = new Set<number>();
 
-    filteredFaultJobs.forEach((job, i) => {
-      if (added.has(i)) return;
-      let clusterLat = job.coords.latitude;
-      let clusterLng = job.coords.longitude;
-      let count = 1;
+  //   filteredFaultJobs.forEach((job, i) => {
+  //     if (added.has(i)) return;
+  //     let clusterLat = job.coords.latitude;
+  //     let clusterLng = job.coords.longitude;
+  //     let count = 1;
 
-      filteredFaultJobs.forEach((otherJob, j) => {
-        if (i !== j && !added.has(j)) {
-          const latDiff = Math.abs(clusterLat - otherJob.coords.latitude);
-          const lngDiff = Math.abs(clusterLng - otherJob.coords.longitude);
-          if (latDiff < gridSize && lngDiff < gridSize) {
-            clusterLat = (clusterLat * count + otherJob.coords.latitude) / (count + 1);
-            clusterLng = (clusterLng * count + otherJob.coords.longitude) / (count + 1);
-            count += 1;
-            added.add(j);
-          }
-        }
-      });
-      clusters.push({ latitude: clusterLat, longitude: clusterLng, count });
-    });
-
-    return clusters;
-  }, [filteredFaultJobs, mapRegion]);
-
-    
-  // const handleLocateMe = useCallback(async () => {
-  //   scale.value = withSpring(0.95);
-  //   try {
-  //     if (errorMsg) throw new Error(errorMsg);
-  //     const waitForLocation = new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
-  //       const timeout = setTimeout(() => reject(new Error("Location request timed out")), 10000);
-  //       const checkLocation = () => {
-  //         if (userLocation) {
-  //           clearTimeout(timeout);
-  //           resolve(userLocation);
-  //         } else setTimeout(checkLocation, 500);
-  //       };
-  //       checkLocation();
+  //     filteredFaultJobs.forEach((otherJob, j) => {
+  //       if (i !== j && !added.has(j)) {
+  //         const latDiff = Math.abs(clusterLat - otherJob.coords.latitude);
+  //         const lngDiff = Math.abs(clusterLng - otherJob.coords.longitude);
+  //         if (latDiff < gridSize && lngDiff < gridSize) {
+  //           clusterLat = (clusterLat * count + otherJob.coords.latitude) / (count + 1);
+  //           clusterLng = (clusterLng * count + otherJob.coords.longitude) / (count + 1);
+  //           count += 1;
+  //           added.add(j);
+  //         }
+  //       }
   //     });
-  //     const coords = await waitForLocation;
-  //     mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 });
-  //   } catch (err: any) {
-  //     Alert.alert("Location issue", err?.message ?? "Could not retrieve location.");
-  //   } finally {
-  //     scale.value = withSpring(1);
-  //   }
-  // }, [userLocation, errorMsg, scale]);
+  //     clusters.push({ latitude: clusterLat, longitude: clusterLng, count });
+  //   });
+  //   return clusters;
+  // }, [filteredFaultJobs, mapRegion]);
+
   const handleLocateMe = useCallback(async () => {
     scale.value = withSpring(0.95);
     try {
       if (errorMsg) throw new Error(errorMsg);
-      if (userLocation) {
-        mapRef.current?.animateToRegion({
-          ...userLocation,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-      }
+      const waitForLocation = new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Location request timed out")), 10000);
+        const checkLocation = () => {
+          if (userLocation) {
+            clearTimeout(timeout);
+            resolve(userLocation);
+          } else setTimeout(checkLocation, 500);
+        };
+        checkLocation();
+      });
+      const coords = await waitForLocation;
+      mapRef.current?.animateToRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 });
     } catch (err: any) {
       Alert.alert("Location issue", err?.message ?? "Could not retrieve location.");
     } finally {
       scale.value = withSpring(1);
     }
   }, [userLocation, errorMsg, scale]);
-
-
-  // Refresh handler
-  const onRefresh = async () => {
-    setRefreshing(true);
-    // await onActionQueued();
-    setRefreshing(false);
-  };
-
+  // const handleLocateMe = useCallback(async () => {
+  //   scale.value = withSpring(0.95);
+  //   try {
+  //     if (errorMsg) throw new Error(errorMsg);
+  //     if (userLocation) {
+  //       mapRef.current?.animateToRegion({
+  //         ...userLocation,
+  //         latitudeDelta: 0.01,
+  //         longitudeDelta: 0.01,
+  //       });
+  //     }
+  //   } catch (err: any) {
+  //     Alert.alert("Location issue", err?.message ?? "Could not retrieve location.");
+  //   } finally {
+  //     scale.value = withSpring(1);
+  //   }
+  // }, [userLocation, errorMsg, scale]);
 
   const initialRegion = useMemo(
     () => ({
       latitude: userLocation?.latitude ?? -17.8292,
       longitude: userLocation?.longitude ?? 31.0522,
-      latitudeDelta: 0.05,
-      longitudeDelta: 0.05,
+      latitudeDelta: LATITUDE_DELTA,
+      longitudeDelta: LONGITUDE_DELTA,
     }),
     [userLocation]
   );
 
   // Fit map to artisan + faults
   const autoFitMap = useCallback(() => {
-    if (!mapRef.current || !userLocation) return;
+    if (!mapRef.current || !userLocation ) return;
     const coords = [...filteredFaultJobs.map((f: any) => f.coords), userLocation].filter(Boolean);
     if (coords.length === 0) return;
-
     const lats = coords.map((c: any) => c.latitude);
     const lngs = coords.map((c: any) => c.longitude);
-
     const region: Region = {
       latitude: (Math.min(...lats) + Math.max(...lats)) / 2,
       longitude: (Math.min(...lngs) + Math.max(...lngs)) / 2,
       latitudeDelta: Math.max(Math.max(...lats) - Math.min(...lats), 0.01) * 1.5,
       longitudeDelta: Math.max(Math.max(...lngs) - Math.min(...lngs), 0.01) * 1.5,
     };
-
-    mapRef.current.animateToRegion(region, 600);
+    mapRef.current.animateToRegion(region, 300);
   }, [filteredFaultJobs, userLocation]);
 
-  // useEffect(() => {
-  //   // small delay for map to render before fitting
-  //   const t = setTimeout(autoFitMap, 300);
-  //   return () => clearTimeout(t);
-  // }, [autoFitMap]);
-
+  useEffect(() => {
+    const t = setTimeout(autoFitMap, 150); // small delay for map to render before fitting
+    return () => clearTimeout(t);
+  }, [autoFitMap]);
 
   const fitToFilteredData = useCallback(
     (includeUser = false) => {
@@ -345,15 +301,8 @@ export default function MapScreen() {
     }
   };
 
-
-  const handleFilterChange = (key: string) => {
-    setSelectedFilter(key);
-    setTimeout(fitToFilteredData, 20);
-  };
-
-  
   // Top-level map controls
-  // const zoom = useCallback((delta: number) => {
+  // const zoomPrime = useCallback((delta: number) => {
   //   mapRef.current?.getCamera().then((cam) => {
   //     if (!cam?.zoom && cam?.zoom !== 0) return;
   //     mapRef.current?.animateCamera({ zoom: cam.zoom + delta });
@@ -377,7 +326,6 @@ export default function MapScreen() {
     });
     setTimeout(() => setIsZooming(false), 350); // throttle ~350ms
   };
-
 
   const resetCompass = useCallback(() => {
     mapRef.current?.animateCamera({ heading: 0, pitch: 0 });
@@ -403,200 +351,183 @@ export default function MapScreen() {
 
   }, [selectedFaultJob]); 
 
-  
 
   return (
     <>
       {loading ? (
           <LoadingScreen />
         ) : (
-          <View
-            // showsVerticalScrollIndicator={false}
-            // refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchJobs} tintColor={themeColors.colors.primary} />}
-            style={[styles.container, { backgroundColor: themeColors.colors.background}]}
-          >
+          <View style={[styles.container, { backgroundColor: themeColors.colors.background}]} >
             <MapView
               ref={mapRef}
               style={StyleSheet.absoluteFillObject}
               initialRegion={initialRegion}
-              // provider={PROVIDER_GOOGLE}
-              showsMyLocationButton={false}
               showsUserLocation
-              onMapReady={() => {
-                // setMapReady(true);
-                // setTimeout(fitToFilteredData(true), 1);
-                autoFitMap(); // pan once map is ready
-              }}
-              // customMapStyle={mode === "dark" ? mapThemes.dark : mapThemes.light}
               onRegionChangeComplete={(region) => setMapRegion(region)}
-              // showsCompass
-              // mapPadding={{ top: 80, right: 12, bottom: 140, left: 12 }}
-              {...(Platform.OS === "ios" ? { compassOffset: { x: 16, y: 96 } } : {})}
+              onMapReady={() => {
+                setTimeout(() => {
+                  try {
+                    autoFitMap();
+                  } catch (err) {
+                    console.error("autoFitMap error:", err);
+                  }
+                }, 300);
+              }}
+              showsMyLocationButton={false}
+              showsCompass = {false}
+              // customMapStyle={mode === "dark" ? mapThemes.dark : mapThemes.light}
+              // mapPadding={EDGE_PADDING}
+              // provider={PROVIDER_GOOGLE}
+              // {...(Platform.OS === "ios" ? { compassOffset: { x: 16, y: 96 } } : {})}
             >
-              {/* OpenStreetMap tiles */}
-              <UrlTile
-                // urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                urlTemplate="https://api.maptiler.com/tiles/streets/{z}/{x}/{y}.png?key=fWWaNtSVZXRXIkWPhbG5"
-                maximumZ={19}
-                flipY={false}
-              />
-              
-              {/* Artisan marker */}
-              {/* {userLocation && (
-                <>
-                  <Marker coordinate={userLocation} title="Me" pinColor="blue" description="My current location" />
-                  <Circle center={userLocation} radius={30} strokeColor="rgba(0,122,255,0.5)" fillColor="rgba(0,122,255,0.2)" />
-                </>
-              )} */}
 
-              {/* Clustered markers */}
-              {clusteredJobs.map((c, idx) =>
-                "count" in c && c.count > 1 ? (
-                  <Marker 
-                    key={`cluster-${idx}`} 
-                    coordinate={{ latitude: Number(c.latitude), longitude: Number(c.longitude) }}
-                    onPress={() => {
-                      mapRef.current?.animateToRegion({
-                        latitude: Number(c.latitude),
-                        longitude: Number(c.longitude),
-                        latitudeDelta: 0.01, // zoom tighter
-                        longitudeDelta: 0.01,
-                      }, 500);}
-                    }
-                  >
-                    <View style={styles.clusterMarker}>
-                      <Text style={styles.clusterText}>{c.count}</Text>
-                    </View>
-                  </Marker>
-                ) : (
-                  <Marker
-                    key={filteredFaultJobs[idx].id ??  `${filteredFaultJobs[idx].coords.latitude}-${filteredFaultJobs[idx].coords.longitude}`}
-                    coordinate={filteredFaultJobs[idx].coords}
-                    pinColor={filteredFaultJobs[idx].severity === "critical" ? "red" : "yellow"}
-                    // pinColor={getSeverityColor(filteredFaultJobs[idx].severity)}
-                    onPress={() => {
-                      setSelectedFaultJob(filteredFaultJobs[idx]);
-                      mapRef.current?.animateToRegion({
-                        latitude: filteredFaultJobs[idx].coords.latitude,
-                        longitude: filteredFaultJobs[idx].coords.longitude,
-                        latitudeDelta: 0.01, // zoom tighter
-                        longitudeDelta: 0.01,
-                      }, 500);}
-                    }
-                    title={String(`${filteredFaultJobs[idx].title ?? "Fault"} @ ${filteredFaultJobs[idx].locationName ?? "this location."}`)}
-                    description={`Possible ${filteredFaultJobs[idx].cause ?? "cause unknown"} | ${filteredFaultJobs[idx].source ?? "Unknown Source"} | ${filteredFaultJobs[idx].zone ?? "Unknown"} Zone`}
-                  />
-                )
-              )}
-
-            {/* Render clusters & markers */}
-            {/* {clusters.map((c: any) => {
-              const [longitude, latitude] = c.geometry.coordinates;
-
-              if (c.properties.cluster) {
-                return (
-                  <Marker
-                    key={`cluster-${c.id}`}
-                    coordinate={{ latitude, longitude }}
-                    onPress={() => {
-                      const expansionZoom = clusterIndex.getClusterExpansionZoom(c.id);
-                      mapRef.current?.animateCamera({
-                        center: { latitude, longitude },
-                        zoom: expansionZoom,
-                      });
-                    }}
-                  >
-                    <View style={styles.clusterMarker}>
-                      <Text style={styles.clusterText}>{c.properties.point_count}</Text>
-                    </View>
-                  </Marker>
-                );
-              }
-
-              return (
-                <Marker
-                  key={`point-${c.properties.faultId}`}
-                  coordinate={{ latitude, longitude }}
-                  pinColor={c.properties.severity === "critical" ? "red" : "yellow"}
-                  title={c.properties.title}
+              {/* OpenStreetMap / MapTiler tiles (guarded) */}
+              {/* {(!tileError && isOnline && MAPTILER_KEY && MAPTILER_KEY !== "__MUST_SET__") ? ( */}
+              {(!tileError && MAPTILER_KEY && MAPTILER_KEY !== "__MUST_SET__") ? (
+                <UrlTile
+                  // urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  urlTemplate={`https://api.maptiler.com/tiles/streets/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`}
+                  maximumZ={19}
+                  flipY={false}
+                  // There is no onError prop for UrlTile in react-native-maps stable, so as a fallback
+                  // we guard by setting tileError from network or map errors elsewhere.
                 />
-              );
-            })} */}
+              ) : null}
+              
+              {/* Clustered markers (safe rendering) */}
+              {/* {clusteredJobs.map((entry, idx) => {
+                // cluster entries from your clusteredJobs use {latitude, longitude, count} for clusters
+                if (entry && typeof (entry as any).count === "number" && (entry as any).count > 1) {
+                  const cluster = entry as { latitude: number; longitude: number; count: number };
+                  return (
+                    <Marker
+                      key={`cluster-${idx}-${cluster.latitude}-${cluster.longitude}`}
+                      coordinate={{ latitude: Number(cluster.latitude), longitude: Number(cluster.longitude) }}
+                      onPress={() => {
+                        mapRef.current?.animateToRegion({
+                          latitude: Number(cluster.latitude),
+                          longitude: Number(cluster.longitude),
+                          latitudeDelta: 0.01,
+                          longitudeDelta: 0.01,
+                        }, 500);
+                      }}
+                    >
+                      <View style={styles.clusterMarker}>
+                        <Text style={styles.clusterText}>{cluster.count}</Text>
+                      </View>
+                    </Marker>
+                  );
+                }
 
-            {/* {clusters.map((c: ClusterFeature<any> | PointFeature<any>) => {
-              const [longitude, latitude] = c.geometry.coordinates;
-              if ((c as ClusterFeature<any>).properties.cluster) {
-                const cluster = c as ClusterFeature<any>;
+                // otherwise treat as single job — ensure coords exist
+                const job = entry as any;
+                if (!job || !job.latitude || !job.longitude) {
+                  // fallback: skip rendering invalid entry
+                  return null;
+                }
+                // attempt to find corresponding job object in filteredFaultJobs (search by coords)
+                const matched = filteredFaultJobs.find(f => f?.coords?.latitude === job.latitude && f?.coords?.longitude === job.longitude);
+                const id = matched?.id ?? `marker-${idx}-${job.latitude}-${job.longitude}`;
+
                 return (
                   <Marker
-                    key={`cluster-${cluster.id}`}
-                    coordinate={{ latitude, longitude }}
+                    key={id}
+                    coordinate={{ latitude: job.latitude, longitude: job.longitude }}
+                    pinColor={matched?.severity === "critical" ? "red" : (matched?.severity === "major" ? "orange" : "yellow")}
                     onPress={() => {
-                      const expansionZoom = clusterIndex.getClusterExpansionZoom(cluster.id);
-                      mapRef.current?.animateCamera({
-                        center: { latitude, longitude },
-                        zoom: expansionZoom,
-                      });
+                      if (matched) setSelectedFaultJob(matched);
+                      mapRef.current?.animateToRegion({
+                        latitude: job.latitude,
+                        longitude: job.longitude,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                      }, 500);
                     }}
-                  >
-                    <View style={styles.clusterMarker}>
-                      <Text style={styles.clusterText}>
-                        {cluster.properties.point_count}
-                      </Text>
-                    </View>
-                  </Marker>
-                );
-              } else {
-                const fault = c.properties as Fault;
-                return (
-                  <Marker
-                    key={fault.id}
-                    coordinate={{ latitude, longitude }}
-                    pinColor={
-                      fault.severity === "critical" ? "red" :
-                      fault.severity === "major" ? "orange" :
-                      "yellow"
+                    title={matched?.title ?? "Fault"}
+                    description={
+                      matched 
+                        ? `Possible ${matched.cause ?? "unknown"} | ${matched.source ?? "Unknown Source"}`
+                        : undefined
                     }
-                    title={fault.title}
-                    onPress={() => setSelectedFaultJob(fault)}
                   />
                 );
-              }
-            })} */}
+              })} */}
 
-            
-            {/* Geofences (render only when zoomed in) */}
-            {mapRegion &&
-              mapRegion.latitudeDelta < GEOFENCE_VISIBLE_ZOOM &&
-              filteredFaultJobs.map((job: any) => {
-                if (job.geofence?.type === "circle" && job.geofence.center) {
+              {/* Render clusters & markers */}
+              {clusters.map((c: any) => {
+                const [longitude, latitude] = c.geometry.coordinates;
+
+                if (c.properties.cluster) {
                   return (
-                    <Circle
-                      key={`gf-${job.id}`}
-                      center={job.geofence.center}
-                      radius={job.geofence.radius || 20}
-                      strokeColor="rgba(48, 48, 224, 0.4)"
-                      fillColor="rgba(86, 86, 168, 0.1)"
+                    <Marker
+                      key={`cluster-${c.id}`}
+                      coordinate={{ latitude, longitude }}
+                      onPress={() => {
+                        const expansionZoom = clusterIndex.getClusterExpansionZoom(c.id);
+                        mapRef.current?.animateCamera({
+                          center: { latitude, longitude },
+                          zoom: expansionZoom*1.1,
+                        });
+                      }}
+                    >
+                      <View style={styles.clusterMarker}>
+                        <Text style={styles.clusterText}>{c.properties.point_count}</Text>
+                      </View>
+                    </Marker>
+                  );
+                } else {
+                  const clusterFault = c.properties as Fault;
+                  return (
+                    <Marker
+                      key={`point-${clusterFault.id}`}
+                      coordinate={{ latitude, longitude }}
+                      pinColor={clusterFault.severity === "critical" ? "red" : "yellow"}
+                      title={String(`${clusterFault.title ?? "Fault"} @ ${clusterFault.locationName ?? "this location."}`)}
+                      description={`Possible ${clusterFault.cause ?? "cause unknown"} | ${clusterFault.source ?? "Unknown Source"} | ${clusterFault.zone ?? "Unknown"} Zone`}
+                      onPress={() => {
+                        setSelectedFaultJob(clusterFault.id);
+                        mapRef.current?.animateToRegion({
+                          latitude: clusterFault.coords.latitude,
+                          longitude: clusterFault.coords.longitude,
+                          latitudeDelta: 0.01, // zoom tighter
+                          longitudeDelta: 0.01,
+                        }, 500);}
+                      }
                     />
                   );
                 }
-                // if (job.geofence?.coordinates.length > 1) {
-                if (job.geofence?.type === "polygon"  && job.geofence.coordinates) {
-                  return (
-                    <Polygon
-                      key={`gf-${job.id}`}
-                      coordinates={job.geofence.coordinates ?? []}
-                      // coordinates={job.geofence.coordinates.map(([longitude, latitude]) => ({ latitude: latitude, longitude: longitude }))}
-                      strokeColor={getSeverityColor(job.severity)}
-                      // strokeColor={job.severity}
-                      fillColor={`${getSeverityColor(job.severity)}55`}
-                      // fillColor={`${job.severity}55`}
-                      strokeWidth={1}
-                    />
-                  );
-                }
-                return null;
               })}
+            
+              {/* Geofences (render only when zoomed in) */}
+              {mapRegion &&
+                mapRegion.latitudeDelta < GEOFENCE_VISIBLE_ZOOM &&
+                filteredFaultJobs.map((job: any) => {
+                  if (job.geofence?.type === "circle" && job.geofence.center) {
+                    return (
+                      <Circle
+                        key={`gf-${job.id}`}
+                        center={job.geofence.center}
+                        radius={job.geofence.radius || 20}
+                        strokeColor="rgba(48, 48, 224, 0.4)"
+                        fillColor="rgba(86, 86, 168, 0.1)"
+                      />
+                    );
+                  }
+                  // if (job.geofence?.coordinates.length > 1) {
+                  if (job.geofence?.type === "polygon"  && job.geofence.coordinates) {
+                    return (
+                      <Polygon
+                        key={`gf-${job.id}`}
+                        coordinates={job.geofence.coordinates ?? []}
+                        strokeColor={getSeverityColor(job.severity)}
+                        fillColor={`${getSeverityColor(job.severity)}55`}
+                        strokeWidth={1}
+                      />
+                    );
+                  }
+                  return null;
+                })
+              }
             </MapView>
 
             {/* Filter Pills */}
@@ -606,13 +537,21 @@ export default function MapScreen() {
                   <TouchableOpacity
                     key={status.key}
                     style={[styles.filterButton, selectedFilter === status.key && styles.filterButtonActive]}
-                    onPress={() => setSelectedFilter(status)}
+                    onPress={() => {
+                      setSelectedFilter(status.key as StatusKey); // ensure we set the key (string) not the full object
+                      setTimeout(() => fitToFilteredData(), 30); // slight debounce to allow state to settle before fit
+                    }}
                   >
                     <Text style={{ color: selectedFilter === status.key ? "#fff" : "#1f1e1eff" }}>{formatLabel(status.label)}</Text>
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </View>            
+            </View>
+
+            {/* Snackbar for tile error */}
+            <Snackbar visible={tileError} onDismiss={() => setTileError(false)} duration={3000}>
+              Map tiles failed to load. Showing fallback basemap.
+            </Snackbar>            
 
             {/* Top Map Controls */}
             <View style={styles.controls}>
@@ -628,7 +567,6 @@ export default function MapScreen() {
 
             <View style={styles.bottomBar}>
               {/* Navigate to button */}
-
               <Animated.View style={[
                 animatedStyle,  
                 { width: CONTROL_SIZE, height: CONTROL_SIZE, borderRadius: CONTROL_SIZE / 2 }, 
@@ -636,7 +574,6 @@ export default function MapScreen() {
               ]}>
                 <TouchableOpacity onPress={handleNavigateToFault} >
                   <Navigation2 size={22} />
-                  {/* {userLocation ? <ActivityIndicator /> : <Locate size={22} />} */}
                 </TouchableOpacity>
               </Animated.View>
 
@@ -648,7 +585,6 @@ export default function MapScreen() {
               ]}>
                 <TouchableOpacity onPress={handleLocateMe} >
                   <Locate size={22} />
-                  {/* {userLocation ? <ActivityIndicator /> : <Locate size={22} />} */}
                 </TouchableOpacity>
               </Animated.View>
 
@@ -666,7 +602,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyText: { fontSize: 16, opacity: 0.6 },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  loadingText: { marginTop: 12, fontSize: 16, opacity: 0.6 },
+  loadingText: { marginTop: GAP, fontSize: 16, opacity: 0.6 },
 
   filterTabs: { 
     position: "absolute", 

@@ -8,6 +8,7 @@ import { ArtisanTabs } from "./ArtisanTabs";
 import AllNotificationsScreen from "@/src/screens/common/AllNotificationsScreen";
 import DevSettingsScreen from "@/src/screens/dev/DevSettingsScreen";
 import FaultJobDetailedScreen from "@/src/screens/common/FaultJobDetailedScreen";
+import AboutApp from "@/src/screens/common/AboutApp";
 
 
 export type ArtisanStackParamList = {
@@ -15,6 +16,8 @@ export type ArtisanStackParamList = {
   AllNotifications: undefined;
   DevSettings: undefined;
   FaultJobDetailed: undefined;
+  AboutApp: undefined;
+  
 };
 
 const Stack = createNativeStackNavigator<ArtisanStackParamList>();
@@ -51,6 +54,11 @@ export default function ArtisanStackNavigator() {
         component={FaultJobDetailedScreen}
         options={{ title: "Fault Job Details" }}
       />
+      <Stack.Screen
+        name="AboutApp"
+        component={AboutApp}
+        options={{ title: "About App" }}
+      /> 
     </Stack.Navigator>
   );
 }

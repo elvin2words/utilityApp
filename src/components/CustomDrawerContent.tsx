@@ -7,7 +7,8 @@ import { DrawerContentComponentProps, DrawerContentScrollView, DrawerItem } from
 
 import {
   User, Sliders, HelpCircle,
-  Code2, Moon, Sun, LogOut, } from "lucide-react-native";
+  Code2, Moon, Sun, LogOut,
+  Info, } from "lucide-react-native";
 
 import { useTheme } from "@react-navigation/native";
 
@@ -62,7 +63,7 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
   return (
     <DrawerContentScrollView
       {...props}
-      contentContainerStyle={{ flex: 1, backgroundColor: "transparent" }}
+      contentContainerStyle={{ flex: 1, backgroundColor: "transparent", alignContent:"center", justifyContent:"center" }}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -81,22 +82,32 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
             label="Account"
             icon={({ color, size }) => <User color={color} size={size} />}
             onPress={() => handleNavigate("Account")}
+            style={{right:-5}}
           />
           <DrawerItem
             label="Preferences"
             icon={({ color, size }) => <Sliders color={color} size={size} />}
             onPress={() => handleNavigate("Preferences")}
+            style={{right:-5}}
           />
           <DrawerItem
             label="Help & Support"
             icon={({ color, size }) => <HelpCircle color={color} size={size} />}
             onPress={() => handleNavigate("Help")}
+            style={{right:-5}}
+          />
+          <DrawerItem
+            label="About App"
+            icon={({ color, size }) => <Info color={color} size={size} />}
+            onPress={() => handleNavigate("AboutApp")}
+            style={{right:-5}}
           />
           {__DEV__ && (
             <DrawerItem
               label="Dev Settings"
               icon={({ color, size }) => <Code2 color={color} size={size} />}
               onPress={() => handleNavigate("DevSettings")}
+              style={{right:-5}}
             />
           )}
         </View>
@@ -107,13 +118,9 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
             label="Logout"
             icon={({ color, size }) => <LogOut color={color} size={size} />}
             onPress={handleLogout}
+            style={{right:-25}}
+            // labelStyle={{ alignSelf: "center", justifyContent:"center" }} // centers text
           />
-
-          {/* <DrawerItem
-            label="Show FAB"
-            icon={({ color, size }) => <LogOut color={color} size={size} />}
-            onPress={handleLogout}
-          /> */}
 
           <View style={styles.toggleRow}>
             <View style={styles.toggleLabel}>
@@ -151,8 +158,8 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
               ios_backgroundColor="#3e3e3e"
             />
             <Moon size={20} color={colors.text} />
-
           </View>
+
         </View>
       </View>
     </DrawerContentScrollView>
@@ -167,7 +174,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginTop: 120, 
+    justifyContent:"center",
+    alignContent:"center",
     paddingVertical: 24,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#ccc",
@@ -183,12 +191,13 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 24,
+    justifyContent:"center"
   },
   toggleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 8,
+    // paddingHorizontal: 8,
   },
   toggleLabel: {
     flexDirection: "row",

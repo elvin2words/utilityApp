@@ -28,6 +28,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 
 import { useAppStore } from "@/src/stores/appStore"; 
+import { BOTTOM_NAV_SAFE, GAP } from "@/src/utils/misc";
 
 
 
@@ -142,7 +143,7 @@ export default function ProfileScreen() {
   const [sound, setSound] = useState(true);
   const [vibration, setVibration] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
-  const [cacheDocs, setCacheDocs] = useState(false);
+  const [cacheDocs, setCacheDocs] = useState(true);
 
   const userId = user?.id || "artisan_xyz";
 
@@ -305,7 +306,7 @@ export default function ProfileScreen() {
       </View>
 
       {/* Content */}
-      <ScrollView style={styles.content} contentContainerStyle={{ padding: 16, paddingBottom: 72 }}>
+      <ScrollView style={styles.content} contentContainerStyle={{ padding: GAP, paddingBottom: BOTTOM_NAV_SAFE }}>
         {activeTab === "Profile" && (
           <>
             {/* User Card */}
@@ -324,6 +325,15 @@ export default function ProfileScreen() {
                     <Text style={[styles.userRole, { color: colors.text }]}>{userdetails.role}</Text>
                     <Text style={[styles.userSub, { color: colors.text }]}>Shift: {userdetails.shift}</Text>
                   </View>
+
+                  {/* Edit Profile Pencil */}
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => console.log("Edit Profile tapped")}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="pencil" size={20} color="#3b82f6" />
+                  </TouchableOpacity>
                 </View>
               ) : (
                 <>
@@ -335,7 +345,7 @@ export default function ProfileScreen() {
             </View>
 
             {/* Availability */}
-            <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <View style={[styles.section, { backgroundColor: colors.card, alignItems:"center", justifyContent:"center" }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Availability</Text>
               {userdetails ? (
                 <TouchableOpacity
@@ -483,10 +493,10 @@ export default function ProfileScreen() {
             {showMockData ? (
               <>
                 <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Activity</Text>
-                <View style={styles.activityRow}>
+                <TouchableOpacity style={styles.activityRow}>
                   <MaterialIcons name="engineering" size={20} color={colors.primary} />
                   <Text style={{ marginLeft: 8, color: colors.text }}>Resolved Fault #932</Text>
-                </View>
+                </TouchableOpacity>
               </>
             ) : (
               <>
@@ -522,6 +532,15 @@ export default function ProfileScreen() {
                 <Ionicons style={[{ color: colors.text }]} name="chevron-forward" size={18} />
               </TouchableOpacity>
                             
+              <TouchableOpacity
+                style={[styles.settingRow]}
+                onPress={() => navigation.navigate("AboutApp")}
+              >
+                <Text style={[styles.settingText, { color: colors.text  }]}>
+                  About App Info
+                </Text>
+                <Ionicons style={[{ color: colors.text }]} name="chevron-forward" size={18} />
+              </TouchableOpacity>
 
               {__DEV__ && (
                 <TouchableOpacity
@@ -585,22 +604,28 @@ export default function ProfileScreen() {
             {/* Docs & Help */}
             <View style={[styles.card, { backgroundColor: colors.card }]}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Documentation</Text>
-              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}>
+              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}
+                onPress={() => openLink('https://iqal.co.zw/')}
+              >
                 <Text style={[styles.settingText, { color: colors.text }]}>Safety Guidelines</Text>
                 <Ionicons style={[{ color: colors.text }]} name="open-outline" size={18} />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}>
+              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}
+                onPress={() => openLink('https://iqal.co.zw/')}
+              >
                 <Text style={[styles.settingText, { color: colors.text }]}>Equipment Manuals</Text>
                 <Ionicons style={[{ color: colors.text }]} name="open-outline" size={18} />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.settingRow}
-                onPress={() => openLink('https://example.com/fault-handling-sops')}
+                onPress={() => openLink('https://iqal.co.zw/')}
               >
                 <Text style={[styles.settingText, { color: colors.text }]}>Fault Handling SOPs</Text>
                 <FileText color={colors.text} size={18} />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}>
+              <TouchableOpacity style={[styles.settingRow, { color: colors.text }]}
+                onPress={() => openLink('https://iqal.co.zw/')}
+              >
                 <Text style={[styles.settingText, { color: colors.text }]}>Help & Support</Text>
                 <Ionicons style={[{ color: colors.text }]} name="help-circle-outline" size={18} />
               </TouchableOpacity>
@@ -748,14 +773,22 @@ const styles = StyleSheet.create({
   },
 
   dataCard: { 
-      flexDirection: 'row', 
-      justifyContent: "flex-start", 
-      padding: 10, 
-      borderRadius: 8, 
-      borderLeftWidth: 4, 
-      borderLeftColor: '#2563eb', 
-      backgroundColor: '#2f6e9217', 
-      marginBottom: 8 
-    },  
-
+    flexDirection: 'row', 
+    justifyContent: "flex-start", 
+    padding: 10, 
+    borderRadius: 8, 
+    borderLeftWidth: 4, 
+    borderLeftColor: '#2563eb', 
+    backgroundColor: '#2f6e9217', 
+    marginBottom: 8 
+  },  
+  
+  editButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#e0f2fe',
+    padding: 8,
+    borderRadius: 12,
+  },
 });

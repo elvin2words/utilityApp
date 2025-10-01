@@ -10,6 +10,7 @@ import { SupervisorTabs } from "./SupervisorTabs";
 import AccountScreen from "@/src/screens/supervisor/AccountScreen";
 import PreferencesScreen from "@/src/screens/supervisor/PreferencesScreen";
 import HelpScreen from "@/src/screens/common/HelpScreen";
+import AboutApp from "@/src/screens/common/AboutApp";
 import DevSettingsScreen from "@/src/screens/dev/DevSettingsScreen";
 import CustomDrawerContent from "@/src/components/CustomDrawerContent";
 
@@ -20,6 +21,7 @@ export type SupervisorDrawerParamList = {
   Preferences: undefined;
   Help: undefined;
   DevSettings?: undefined;
+  AboutApp?: undefined;
 };
 
 const Drawer = createDrawerNavigator<SupervisorDrawerParamList>();
@@ -50,10 +52,10 @@ export function SupervisorDrawer() {
     >
       <Drawer.Screen name="SupervisorMain" component={SupervisorTabs} />
       <Drawer.Screen name="Account" component={AccountScreen} />
-      {/* <Drawer.Screen name="Preferences" component={PreferencesScreen} /> */}
+      {/* <Drawer.Screen name="Preferences" component={PreferencesScreen} /> - Has Header ( Back Header only in StackNav) */} 
       <Drawer.Screen name="Help" component={HelpScreen} />
-      {/* <Drawer.Screen name="DevSettings" component={DevSettingsScreen} /> */}
-      {/* {__DEV__ && <Drawer.Screen name="DevSettings" component={DevSettingsScreen} />} */}
+      {/* <Drawer.Screen name="DevSettings" component={DevSettingsScreen} - Has Header (Back Header only in StackNav)  /> */}
+      {/* {__DEV__ && <Drawer.Screen name="DevSettings" component={DevSettingsScreen} - Has Header (Back Header only in StackNav)  />} */}
     </Drawer.Navigator>
   );
 }

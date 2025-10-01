@@ -1,19 +1,19 @@
 // screens/Artisan/HomeScreen.tsx 
 
 import React, { useState, useRef } from "react";
-import { Alert, Dimensions, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Toast from "react-native-toast-message";
 
 import { Ionicons } from "@expo/vector-icons";
 
 import { useAuth } from "@/src/lib/auth/AuthContext";
+
 import { useFaultsQuery } from "@/src/hooks/useFaultsQuery";
 import { useArtisanNotifications } from "@/src/hooks/artisan/useArtisanNotifs";
 
 import { useAppStore } from "@/src/stores/appStore";
 import { useArtisanStore } from "@/src/stores/artisanStore";
-import { useActiveJob, useUpcomingJobs } from "@/src/hooks/artisan/useArtisanJobs";
 
 import { FaultCard } from "@/src/components/FaultJobCard";
 import { NotificationCard } from "@/src/components/ui/NotificationCard";
@@ -24,29 +24,42 @@ import { SystemNotification } from "@/src/types/notification"; // unify types
 import { useThemeStore } from "@/src/lib/themeStore";
 import { getThemeByMode, AppTheme } from "@/src/lib/colors";
 
-import mockFaults from "@/assets/mocks/mockFaults.json";
+// import mockFaults from "@/assets/mocks/mockFaults.json";
 import mockNotifs from "@/assets/mocks/mockNotifs.json";
-import { Notification } from "@/src/shared/schema";
-import { BOTTOM_NAV_SAFE, GAP } from "@/src/utils/misc";
 
-const screenHeight = Dimensions.get("window").height;
+import { Notification } from "@/src/shared/schema";
+
+import { BOTTOM_NAV_SAFE, GAP, width, height } from "@/src/utils/misc";
 
 
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const navigation = useNavigation();
+
   const scrollRef = useRef<ScrollView>(null);
+  
   const { showMockData } = useAppStore();
 
-  // Look up purpose of stores, and wher eot use them as to hooks, then assess these
-  // const { data: activeJob } = useActiveJob(user?.id); // logic to be implemented inside useFaultsJobHook
-  // const activeJob = mockFaults[0]; // logic to be implemented inside useFaultsJobHook
-  const activeJob: Fault | null = showMockData ? mockFaults[0] ?? null : null;
-  // const userId = useAppStore((state) => state.username);
-  // const { upcomingJobs } = useArtisanStore(); // logic to be implemented inside useFaultsJobHook
-  const upcomingJobs: Fault[] = showMockData ? (mockFaults as Fault[]) : [];
-  // const { upcomingJobs } = useUpcomingJobs(user?.id);  // logic to be implemented inside useFaultsJobHook
+  const {
+    activeFaultJob : serverActive,
+    upcomingFaultJobs,
+    loading,
+    refreshFaults,
+    updateFaultStatus,
+  } = useFaultsQuery({
+    isOnline: true,                // or pull from netinfo
+    user: user!,
+    location: null,                // optional geolocation
+    useMockData: showMockData,
+  });
+
+  const localActive = useArtisanStore((s) => s.activeJob);
+  // prefer store (optimistic/offline), else fallback to server
+  const activeJob : Fault | null = showMockData ? ( localActive ?? serverActive ) : null;
+
+  const upcomingJobs: Fault[] = showMockData ? (upcomingFaultJobs as Fault[]) : [];
+
   // const { data: notifications = [], refetch: refetchNotifs, isFetching } = useArtisanNotifications(user?.id); // logic to be implemented inside useNotificationsQuryHook
   const { data: notifications = showMockData ? mockNotifs : [], refetch: refetchNotifs, isFetching } = useArtisanNotifications(user?.id); // logic to be implemented inside useNotificationsQuryHook
 
@@ -59,7 +72,6 @@ export default function HomeScreen() {
   const mode = useThemeStore((s) => s.mode);
   const themeColors: AppTheme = getThemeByMode(mode);
 
-  // track expanded upcoming jobs
   const [expandedJobs, setExpandedJobs] = useState<Record<string, boolean>>({});
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
 
@@ -78,28 +90,23 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await Promise.all([
+      refreshFaults(),
       refetchNotifs(),
-      // refetchUpcomingJobs?.(),
-      // refetchActiveJob?.(),
     ]);
     setRefreshing(false);
   };
 
-
   const handleSendToEddy = () => {
     if (!aiInput.trim()) return;
-
     // Append user message
     setAiChat((prev) => [...prev, { sender: "user", text: aiInput }]);
-
     // Simulate Eddy’s response (replace with API call later)
     setTimeout(() => {
       setAiChat((prev) => [
         ...prev,
-        { sender: "eddy", text: `EDDY here 👋. I got your message: "${aiInput}"` },
+        { sender: "eddy", text: `Heyyy👋 I'm EDDY, the system AI. Unfortunately, I can't help you right now, but Elvin is on it.` },
       ]);
     }, 600);
-
     setAiInput("");
   };
 
@@ -109,7 +116,7 @@ export default function HomeScreen() {
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent]}
-        refreshControl={<RefreshControl refreshing={refreshing || isFetching} onRefresh={onRefresh} tintColor={themeColors.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing || loading} onRefresh={onRefresh} tintColor={themeColors.colors.primary} />}
       >
         {/* ACTIVE JOB */}
         <View style={styles.sectionWrapper}>
@@ -149,8 +156,11 @@ export default function HomeScreen() {
                     action: () => navigation.navigate("FaultJobDetailed", { faultId: task.id }),
                   },
                   {
-                    label: "Start Job", // It should set active job in store (via useArtisanStore
-                    action: () => Alert.alert("Manually set this fault job as the active one in store"),
+                    label: "Start Job", 
+                    action: () => {
+                      // Alert.alert("Manually set this fault job as the active one in store");
+                      updateFaultStatus.mutate({ faultId: task.id, status: "active" });
+                    },
                   },
                 ]}
               />
@@ -236,7 +246,7 @@ export default function HomeScreen() {
                   styles.input,
                   { borderColor: themeColors.colors.border, color: themeColors.colors.maintext },
                 ]}
-                placeholder="Tell me how I can help..."
+                placeholder="Wanna know what's going on ?..."
                 placeholderTextColor={themeColors.colors.subtext}
                 value={aiInput}
                 onChangeText={setAiInput}
@@ -268,7 +278,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    padding: 16,
+    padding: GAP*1.2,
     paddingBottom: 65,
   },
   sectionWrapper: {

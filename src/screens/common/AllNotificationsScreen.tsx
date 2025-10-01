@@ -387,6 +387,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    // width: "100%",
     padding: 24,
   },
   emptyTitle: { fontSize: 22, fontWeight: "700", marginTop: 12, color: "#374151" },

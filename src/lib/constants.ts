@@ -3,6 +3,7 @@
 import React from "react";
 
 import Constants from "expo-constants";
+import { height, width } from "../utils/misc";
 
 
 const extra = Constants.expoConfig?.extra || {};
@@ -203,3 +204,8 @@ export const HEATMAP_LEGENDS = {
 } as const;
 
 export type HeatmapLegendProps = { activeFilter: keyof typeof HEATMAP_LEGENDS; };
+
+
+export const ASPECT_RATIO = width / height;
+export const LATITUDE_DELTA = 0.0922;
+export const LONGITUDE_DELTA = LATITUDE_DELTA * ASPECT_RATIO;
