@@ -45,11 +45,13 @@ import { RefreshControl } from "react-native-gesture-handler";
 import { BOTTOM_NAV_SAFE, GAP } from "@/src/utils/misc";
 
 import { useAppStore } from "@/src/stores/appStore";
+
 import DashboardCard from "@/src/components/ui/supervisor/DashboardCard";
 import { useSupervisorDashboard } from "@/src/hooks/supervisor/useSupervisorDashboard";
 import CriticalFaultList from "@/src/components/ui/supervisor/CriticalFaultList";
 import RecentActivities from "@/src/components/RecentActivities";
 import AnalyticsChart from "@/src/components/ui/supervisor/AnalyticsChart";
+import { DashboardSkeletons } from "@/src/components/ui/skeletons";
 
 
 
@@ -87,6 +89,7 @@ type StatusFilter = typeof STATUS_FILTERS[number];
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { isOnline } = useNetworkStatus();
+  const showMockData = useAppStore();
 
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
@@ -107,7 +110,6 @@ export default function DashboardScreen() {
 
   const [fabExpanded, setFabExpanded] = useState(false);
   const fabVisible = useAppStore((state) => state.fabVisible);
-  const showMockData = useAppStore();
 
   const [selectedAlert, setSelectedAlert] = useState<Fault | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<ActivityLog | null>(null);
@@ -625,263 +627,272 @@ const pointerLabel = (idx: number | undefined) => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.colors.background }]}>
-      <ScrollView
-        contentContainerStyle={[
-          { paddingBottom: insets.bottom + BOTTOM_NAV_SAFE },
-        ]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={null} />} 
-      >
-        {/* Search */}
-        <View style={[styles.searchBox, { borderColor: themeColors.colors.border }]}>
-          {/* <Feather name="search" size={18} color={themeColors.colors.maintext} /> */}
-          <SparklesIcon size={18} color={themeColors.colors.maintext} />
-          <TextInput
-            // placeholder="Ask EDDY... (the System Intelligence)..."
-            placeholder="Ask EDDY... (the System AI)..."
-            placeholderTextColor={themeColors.colors.subtext}
-            style={[styles.searchInput, { color: themeColors.colors.text }]}
-            onChangeText={onChangeSearch}
-          />
-        </View>
-
-        {/* Top 2x2 Grid */}
-        <View style={styles.topGrid}>
-          {topCards.map((c, i) => (
-            <StatCard key={c.id} c={c} width={cardWidth} themeColors={themeColors}/>
-          ))}
-        </View>
-
-        {/* Critical Faults Section */}
-        {renderCriticalFaults()}
-
-        {/* <QuickActions
-          onCreate={() => navigation.navigate("FaultJobsScreen" as never)}
-          onAcknowledge={() => { activitiesQuery.refetch(); faultsQuery.refetch(); }}
-          onAssign={() => navigation.navigate("FaultJobAssignment" as never)}
-          onOpenMap={() => navigation.navigate("Map" as never)}
-        /> */}
-
-        <TodayCenter
-          todayCount={resolvedToday}
-          overdueCount={overdueCount}
-          approvalsCount={approvalsCount}
-          onApproveAll={() => navigation.navigate("Approvals" as never)}
-          onViewOverdue={() => navigation.navigate("Stats" as never, { tab: "overdue" } as never)}
-          onViewToday={() => navigation.navigate("Stats" as never, { filter: "date", value: new Date().toISOString() } as never)}
-          themeColors={themeColors}
-        />
-
-        {/* Perfomance Line Chart */}
-        <View style={styles.sectionRow}>
-          <PerformanceLineChart lineData={lineData} series={chartSeries} themeColors={themeColors} last7={last7} pointerLabel={pointerLabel}/>
-          {/* <CompletionBar completed={resolvedToday} total={filteredFaults.length || 1} /> */}
-        </View>
-        {/* Perfomance Bar Chart */}
-        <View style={styles.sectionRow}>
-          <PerformanceBarChart barData={barData} prioAgg={prioAgg} themeColors={themeColors} last7={last7} pointerLabel={pointerLabel} barTooltip={barTooltip}/>
-        </View>
-
-        <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, marginHorizontal: 4}}>
-          {/* Resolution Rate */}
-          <TouchableOpacity style={[styles.completionWrap, {backgroundColor: themeColors.colors.card }]} onPress= {() => navigation.navigate("Stats" as never)} >
-            <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text }]}>Resolution Rate</Text>
-            <View style={styles.progressBg}>
-              <View style={[styles.progressFill, { width: `${Math.round((resolvedToday / (filteredFaults.length || 1)) * 100)}%` }]} />
-            </View>
-            <Text style={styles.completionText}>{`${resolvedToday} / ${filteredFaults.length || 1}`}</Text>
-          </TouchableOpacity>
-
-          {/* Priority Distribution */}
-          <TouchableOpacity style={[styles.completionWrap, { flex: 1, backgroundColor: themeColors.colors.card }]} onPress= {() => navigation.navigate("Stats" as never)} >
-            <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text } ]}>Priority Distribution</Text>
-            <View style={{ marginTop: 8, flexDirection:"row", justifyContent:"space-between" }}>
-              <Text style={{ color: "#ef4444" }}>H: {priorityCounts.high}</Text>
-              <Text style={{ color: "#fbbf24" }}>M: {priorityCounts.medium}</Text>
-              <Text style={{ color: "#10b981" }}>L: {priorityCounts.low}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity 
-          style={[styles.section, {backgroundColor: themeColors.colors.card,  marginHorizontal: 4, marginBottom: 12 }]}
-          onPress= {() => navigation.navigate("Stats" as never)}
+      {/* {showMockData ? ( */}
+        <ScrollView
+          contentContainerStyle={[
+            { paddingBottom: insets.bottom + BOTTOM_NAV_SAFE },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={null} />} 
         >
-          <View >
-            <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text } ]}>Other Stats Chart</Text>
-            {(["high","medium","low"] as const).map((level) => {
-              const colors = { high: "#ef4444", medium: "#fbbf24", low: "#10b981" };
-              const value = priorityCounts[level];
-              const total = filteredFaults.length || 1;
-              return (
-                <View key={level} style={{ marginBottom: 4 }}>
-                  <Text style={{ color: colors[level], fontSize: 12, marginBottom: 2 }}>{level.charAt(0).toUpperCase() + level.slice(1)}: {value}</Text>
-                  <View style={{ height: 6, backgroundColor: "#e5e7eb", borderRadius: 3 }}>
-                    <View style={{ width: `${Math.round((value / total) * 100)}%`, height: 6, backgroundColor: colors[level], borderRadius: 3 }} />
+          {/* Search */}
+          <View style={[styles.searchBox, { borderColor: themeColors.colors.border }]}>
+            {/* <Feather name="search" size={18} color={themeColors.colors.maintext} /> */}
+            <SparklesIcon size={18} color={themeColors.colors.maintext} />
+            <TextInput
+              // placeholder="Ask EDDY... (the System Intelligence)..."
+              placeholder="Ask EDDY... (the System AI)..."
+              placeholderTextColor={themeColors.colors.subtext}
+              style={[styles.searchInput, { color: themeColors.colors.text }]}
+              onChangeText={onChangeSearch}
+            />
+          </View>
+
+          {/* Top 2x2 Grid */}
+          <View style={styles.topGrid}>
+            {topCards.map((c, i) => (
+              <StatCard key={c.id} c={c} width={cardWidth} themeColors={themeColors}/>
+            ))}
+          </View>
+
+          {/* Critical Faults Section */}
+          {renderCriticalFaults()}
+
+          {/* <QuickActions
+            onCreate={() => navigation.navigate("FaultJobsScreen" as never)}
+            onAcknowledge={() => { activitiesQuery.refetch(); faultsQuery.refetch(); }}
+            onAssign={() => navigation.navigate("FaultJobAssignment" as never)}
+            onOpenMap={() => navigation.navigate("Map" as never)}
+          /> */}
+
+          <TodayCenter
+            todayCount={resolvedToday}
+            overdueCount={overdueCount}
+            approvalsCount={approvalsCount}
+            onApproveAll={() => navigation.navigate("Approvals" as never)}
+            onViewOverdue={() => navigation.navigate("Stats" as never, { tab: "overdue" } as never)}
+            onViewToday={() => navigation.navigate("Stats" as never, { filter: "date", value: new Date().toISOString() } as never)}
+            themeColors={themeColors}
+          />
+
+          {/* Perfomance Line Chart */}
+          <View style={styles.sectionRow}>
+            <PerformanceLineChart lineData={lineData} series={chartSeries} themeColors={themeColors} last7={last7} pointerLabel={pointerLabel}/>
+            {/* <CompletionBar completed={resolvedToday} total={filteredFaults.length || 1} /> */}
+          </View>
+          {/* Perfomance Bar Chart */}
+          <View style={styles.sectionRow}>
+            <PerformanceBarChart barData={barData} prioAgg={prioAgg} themeColors={themeColors} last7={last7} pointerLabel={pointerLabel} barTooltip={barTooltip}/>
+          </View>
+
+          <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12, marginHorizontal: 4}}>
+            {/* Resolution Rate */}
+            <TouchableOpacity style={[styles.completionWrap, {backgroundColor: themeColors.colors.card }]} onPress= {() => navigation.navigate("Stats" as never)} >
+              <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text }]}>Resolution Rate</Text>
+              <View style={styles.progressBg}>
+                <View style={[styles.progressFill, { width: `${Math.round((resolvedToday / (filteredFaults.length || 1)) * 100)}%` }]} />
+              </View>
+              <Text style={styles.completionText}>{`${resolvedToday} / ${filteredFaults.length || 1}`}</Text>
+            </TouchableOpacity>
+
+            {/* Priority Distribution */}
+            <TouchableOpacity style={[styles.completionWrap, { flex: 1, backgroundColor: themeColors.colors.card }]} onPress= {() => navigation.navigate("Stats" as never)} >
+              <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text } ]}>Priority Distribution</Text>
+              <View style={{ marginTop: 8, flexDirection:"row", justifyContent:"space-between" }}>
+                <Text style={{ color: "#ef4444" }}>H: {priorityCounts.high}</Text>
+                <Text style={{ color: "#fbbf24" }}>M: {priorityCounts.medium}</Text>
+                <Text style={{ color: "#10b981" }}>L: {priorityCounts.low}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.section, {backgroundColor: themeColors.colors.card,  marginHorizontal: 4, marginBottom: 12 }]}
+            onPress= {() => navigation.navigate("Stats" as never)}
+          >
+            <View >
+              <Text style={[ styles.sectionTitle, , { color: themeColors.colors.text } ]}>Other Stats Chart</Text>
+              {(["high","medium","low"] as const).map((level) => {
+                const colors = { high: "#ef4444", medium: "#fbbf24", low: "#10b981" };
+                const value = priorityCounts[level];
+                const total = filteredFaults.length || 1;
+                return (
+                  <View key={level} style={{ marginBottom: 4 }}>
+                    <Text style={{ color: colors[level], fontSize: 12, marginBottom: 2 }}>{level.charAt(0).toUpperCase() + level.slice(1)}: {value}</Text>
+                    <View style={{ height: 6, backgroundColor: "#e5e7eb", borderRadius: 3 }}>
+                      <View style={{ width: `${Math.round((value / total) * 100)}%`, height: 6, backgroundColor: colors[level], borderRadius: 3 }} />
+                    </View>
                   </View>
-                </View>
-              )
-            })}
-          </View>
-        </TouchableOpacity>
+                )
+              })}
+            </View>
+          </TouchableOpacity>
 
-        {/* <QuickActions
-          onCreate={() => navigation.navigate("FaultJobsScreen" as never)}
-          onAcknowledge={() => { activitiesQuery.refetch(); faultsQuery.refetch(); }}
-          onAssign={() => navigation.navigate("FaultJobAssignment" as never)}
-          onOpenMap={() => navigation.navigate("Map" as never)}
-          themeColors={themeColors}
-        /> */}
+          {/* <QuickActions
+            onCreate={() => navigation.navigate("FaultJobsScreen" as never)}
+            onAcknowledge={() => { activitiesQuery.refetch(); faultsQuery.refetch(); }}
+            onAssign={() => navigation.navigate("FaultJobAssignment" as never)}
+            onOpenMap={() => navigation.navigate("Map" as never)}
+            themeColors={themeColors}
+          /> */}
 
-        {/* Map Preview */}
-        {/* <MapPreview faults={filteredFaults} /> */}
-        <View style={[styles.mapCard, { backgroundColor: themeColors.colors.card }]}>
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent:"center" }}>
-            <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
-              Map Preview
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                marginLeft: 6,
-                color: themeColors.colors.textSecondary ?? "#6b7280", // fallback gray-500
-              }}
-            >
-              (Double tap to open)
-            </Text>
-          </View>
-          <View style={styles.mapWrapper}>
-            <Pressable onPress={handleDoubleTapMap} style={{ flex: 1 }}>
-              <MapView
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={{
-                  latitude: filteredFaults[0]?.coords?.latitude || -17.8252,
-                  longitude: filteredFaults[0]?.coords?.longitude || 31.0335,
-                  latitudeDelta: 0.12,
-                  longitudeDelta: 0.12,
+          {/* Map Preview */}
+          {/* <MapPreview faults={filteredFaults} /> */}
+          <View style={[styles.mapCard, { backgroundColor: themeColors.colors.card }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent:"center" }}>
+              <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
+                Map Preview
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  marginLeft: 6,
+                  color: themeColors.colors.textSecondary ?? "#6b7280", // fallback gray-500
                 }}
               >
-                {/* OpenStreetMap tiles */}
-                <UrlTile
-                  // urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  urlTemplate="https://api.maptiler.com/tiles/streets/{z}/{x}/{y}.png?key=fWWaNtSVZXRXIkWPhbG5"
-                  maximumZ={19}
-                  flipY={false}
-                />                
-                {filteredFaults.slice(0, 6).map(f => f.coords && (
-                  <Marker
-                    key={f.id}
-                    coordinate={f.coords}
-                    title={f.title}
-                  />
-                ))}
-              </MapView>
+                (Double tap to open)
+              </Text>
+            </View>
+            <View style={styles.mapWrapper}>
+              <Pressable onPress={handleDoubleTapMap} style={{ flex: 1 }}>
+                <MapView
+                  ref={mapRef}
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: filteredFaults[0]?.coords?.latitude || -17.8252,
+                    longitude: filteredFaults[0]?.coords?.longitude || 31.0335,
+                    latitudeDelta: 0.12,
+                    longitudeDelta: 0.12,
+                  }}
+                >
+                  {/* OpenStreetMap tiles */}
+                  <UrlTile
+                    // urlTemplate="https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    urlTemplate="https://api.maptiler.com/tiles/streets/{z}/{x}/{y}.png?key=fWWaNtSVZXRXIkWPhbG5"
+                    maximumZ={19}
+                    flipY={false}
+                  />                
+                  {filteredFaults.slice(0, 6).map(f => f.coords && (
+                    <Marker
+                      key={f.id}
+                      coordinate={f.coords}
+                      title={f.title}
+                    />
+                  ))}
+                </MapView>
 
-              <Pressable
-                style={styles.mapLockBtn}
-                onPress={() => {
-                  if (!mapRef.current || filteredFaults.length === 0) return;
-                  const lats = filteredFaults.map(f => f.coords?.latitude || 0);
-                  const lngs = filteredFaults.map(f => f.coords?.longitude || 0);
-                  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-                  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-                  mapRef.current.animateToRegion({
-                    latitude: (minLat + maxLat)/2,
-                    longitude: (minLng + maxLng)/2,
-                    latitudeDelta: (maxLat - minLat) * 1.8 || 0.12,
-                    longitudeDelta: (maxLng - minLng) * 1.8 || 0.12,
-                  });
-                }}
-              >
-                <Feather name="crosshair" size={20} color="#fff" />
+                <Pressable
+                  style={styles.mapLockBtn}
+                  onPress={() => {
+                    if (!mapRef.current || filteredFaults.length === 0) return;
+                    const lats = filteredFaults.map(f => f.coords?.latitude || 0);
+                    const lngs = filteredFaults.map(f => f.coords?.longitude || 0);
+                    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+                    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+                    mapRef.current.animateToRegion({
+                      latitude: (minLat + maxLat)/2,
+                      longitude: (minLng + maxLng)/2,
+                      latitudeDelta: (maxLat - minLat) * 1.8 || 0.12,
+                      longitudeDelta: (maxLng - minLng) * 1.8 || 0.12,
+                    });
+                  }}
+                >
+                  <Feather name="crosshair" size={20} color="#fff" />
+                </Pressable>
               </Pressable>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Recent Activities */}
-        {/* {renderActivities()} */}
-        <View style={[styles.section, { backgroundColor: themeColors.colors.card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
-              Recent Activities
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Activities" as never)}
-            >
-              <Text style={{ color: themeColors.colors.subtext, fontSize: 13 }}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          {/* // Render Activities */}
-
-          {activities.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Ionicons name="briefcase-outline" size={36} color="#9ca3af" style={{ marginBottom: 10 }} />
-              <Text style={styles.emptyText}>No recent activities logged at this time</Text>
             </View>
-          ) : (
-            activities.slice(0, 6).map((a) => <RecentActivityItem key={a.id} activity={a} setSelectedActivity={setSelectedActivity} themeColors={themeColors} />)
-          )}
-        </View>
-
-        {/* Alerts - To be optimised and sorted in order of latest in hence alerts raised for critical faults, system changes etc not just critical faults */}
-        <View style={[styles.section, { backgroundColor: themeColors.colors.card }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
-              Alerts
-            </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("Alerts" as never)}
-            >
-              <Text style={{ color: themeColors.colors.subtext, fontSize: 13 }}>View All</Text>
-            </TouchableOpacity>
           </View>
-          {criticalFaults.length > 0 ? (
-            criticalFaults.slice(0, 5).map((f) => (
+
+          {/* Recent Activities */}
+          {/* {renderActivities()} */}
+          <View style={[styles.section, { backgroundColor: themeColors.colors.card }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
+                Recent Activities
+              </Text>
               <TouchableOpacity
-                key={f.id}
-                style={styles.alertRow}
-                onPress={() => setSelectedAlert(f)}
+                onPress={() => navigation.navigate("Activities" as never)}
               >
-                <Text style={styles.alertDot} />
-                <Text style={[styles.alertText, {color: themeColors.colors.subtext,}]}>{`${f.title} — ${f.locationName}`}</Text>
-                {/* <Text style={styles.alertSmall}>{formatDateTime(f.timeline.reported)}</Text> */}
+                <Text style={{ color: themeColors.colors.subtext, fontSize: 13 }}>View All</Text>
               </TouchableOpacity>
-            ))
-          ) : (
-            <View style={styles.emptyBox}>
-              <Ionicons name="briefcase-outline" size={36} color="#9ca3af" style={{ marginBottom: 10 }} />
-              <Text style={[ styles.empty, {color: themeColors.colors.subtext,}]}>No active alerts at this time</Text>
             </View>
-          )}
-        </View>
+            {/* // Render Activities */}
 
-      </ScrollView>
-      
-      {fabVisible && (
-          <View style={styles.fabContainer}>
-            {fabExpanded && (
-              <View style={styles.fabActions}>
-                <Pressable style={styles.fabActionBtn} onPress={handleCreateJob}>
-                  <Feather name="plus" size={20} color="#fff" />
-                </Pressable>
-                <Pressable style={styles.fabActionBtn} onPress={handleQuickAssign}>
-                  <Feather name="user-check" size={20} color="#fff" />
-                </Pressable>
-                <Pressable style={styles.fabActionBtn} onPress={handleQuickAssign}> // use fr acknowledgement and signing of basically
-                  <Feather name="check" size={20} color="#fff" />
-                </Pressable>
-                <Pressable style={styles.fabActionBtn} onPress={handleOpenMap}>
-                  <Feather name="map" size={20} color="#fff" />
-                </Pressable>
+            {activities.length === 0 ? (
+              <View style={styles.emptyBox}>
+                <Ionicons name="briefcase-outline" size={36} color="#9ca3af" style={{ marginBottom: 10 }} />
+                <Text style={styles.emptyText}>No recent activities logged at this time</Text>
+              </View>
+            ) : (
+              activities.slice(0, 6).map((a) => <RecentActivityItem key={a.id} activity={a} setSelectedActivity={setSelectedActivity} themeColors={themeColors} />)
+            )}
+          </View>
+
+          {/* Alerts - To be optimised and sorted in order of latest in hence alerts raised for critical faults, system changes etc not just critical faults */}
+          <View style={[styles.section, { backgroundColor: themeColors.colors.card }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: themeColors.colors.text }]}>
+                Alerts
+              </Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Alerts" as never)}
+              >
+                <Text style={{ color: themeColors.colors.subtext, fontSize: 13 }}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            {criticalFaults.length > 0 ? (
+              criticalFaults.slice(0, 5).map((f) => (
+                <TouchableOpacity
+                  key={f.id}
+                  style={styles.alertRow}
+                  onPress={() => setSelectedAlert(f)}
+                >
+                  <Text style={styles.alertDot} />
+                  <Text style={[styles.alertText, {color: themeColors.colors.subtext,}]}>{`${f.title} — ${f.locationName}`}</Text>
+                  {/* <Text style={styles.alertSmall}>{formatDateTime(f.timeline.reported)}</Text> */}
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyBox}>
+                <Ionicons name="briefcase-outline" size={36} color="#9ca3af" style={{ marginBottom: 10 }} />
+                <Text style={[ styles.empty, {color: themeColors.colors.subtext,}]}>No active alerts at this time</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.fab} onPress={() => setFabExpanded(!fabExpanded)}>
-              <Feather name={fabExpanded ? "x" : "plus"} size={24} color="#fff" />
-              {/* <Text style={{ color: "#fff", fontWeight: "700" }}>QA</Text> */}
-            </TouchableOpacity>
           </View>
+
+        </ScrollView>
+      {/* ) : (
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + BOTTOM_NAV_SAFE }}
+          showsVerticalScrollIndicator={false}
+        >
+          <DashboardSkeletons />
+        </ScrollView>
+      )} */}
+
+      {fabVisible && (
+        <View style={styles.fabContainer}>
+          {fabExpanded && (
+            <View style={styles.fabActions}>
+              <Pressable style={styles.fabActionBtn} onPress={handleCreateJob}>
+                <Feather name="plus" size={20} color="#fff" />
+              </Pressable>
+              <Pressable style={styles.fabActionBtn} onPress={handleQuickAssign}>
+                <Feather name="user-check" size={20} color="#fff" />
+              </Pressable>
+              <Pressable style={styles.fabActionBtn} onPress={handleQuickAssign}> // use fr acknowledgement and signing of basically
+                <Feather name="check" size={20} color="#fff" />
+              </Pressable>
+              <Pressable style={styles.fabActionBtn} onPress={handleOpenMap}>
+                <Feather name="map" size={20} color="#fff" />
+              </Pressable>
+            </View>
+          )}
+          <TouchableOpacity style={styles.fab} onPress={() => setFabExpanded(!fabExpanded)}>
+            <Feather name={fabExpanded ? "x" : "plus"} size={24} color="#fff" />
+            {/* <Text style={{ color: "#fff", fontWeight: "700" }}>QA</Text> */}
+          </TouchableOpacity>
+        </View>
       )}      
 
       {/* {renderModal(selectedActivity, "activity")}

@@ -226,11 +226,11 @@ export default function MapScreen() {
 
   // For now use assets — you'll want an API hook for real facilities
   // const facilities: Facility | [] = showMockData ? (facilitiesData as unknown as Facility) : [];
-  const facilities: Facility = showMockData 
-    ? (facilitiesData as unknown as Facility) 
-    : { transformers: [], overheads: [], meters: [] };
+  // const facilities: Facility = showMockData 
+  //   ? (facilitiesData as unknown as Facility) 
+  //   : { transformers: [], overheads: [], meters: [] };
 
-  // const facilities: Facility = facilitiesData as unknown as Facility;
+  const facilities: Facility = facilitiesData as unknown as Facility;
   const facilitiesss = showMockData ? facilitiesData : [];
   
   const normalizedFacilities = [

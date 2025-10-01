@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import React from "react";
+import { DashboardSkeletons } from "@/src/components/ui/skeletons";
 
 
 export default function ArtisansScreen() {

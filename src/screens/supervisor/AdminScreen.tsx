@@ -27,7 +27,7 @@ import { SupervisorStackParamList } from "@/src/navigation/SupervisorStackNaviga
 import { useAppStore } from "@/src/stores/appStore"; // add this
 
 import {
-  mockUsers,
+  mockUsers as mockArtisans,
   mockTeams,
   mockSlaRules,
   mockEscalations,
@@ -164,33 +164,73 @@ export default function AdminScreen() {
   }, [showMockData]); // reload when flag changes
 
 
+  // const loadData = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const apiSource = showMockData ? api2 : api; // pick mock or real
+
+  //     const [u, t, l, sla, e, sh, sc] = await Promise.all([
+  //       apiSource.fetchUsers(),
+  //       apiSource.fetchTeams(),
+  //       apiSource.fetchActivityLogs(),
+  //       apiSource.fetchSLARules(),
+  //       apiSource.fetchEscalations(),
+  //       apiSource.fetchShifts(),
+  //       apiSource.fetchSchedules(),        
+  //     ]);
+  //     setUsers(u);
+  //     setTeams(t);
+  //     setActivityLogs(l);
+  //     setSlaRules(sla);
+  //     setEscalations(e);
+  //     setShifts(sh);
+  //     setSchedules(sc);
+  //   } catch {
+  //     Alert.alert("Error", "Failed to load data");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const loadData = async () => {
     try {
       setLoading(true);
-      const apiSource = showMockData ? api2 : api; // pick mock or real
 
-      const [u, t, l, sla, e, sh, sc] = await Promise.all([
-        apiSource.fetchUsers(),
-        apiSource.fetchTeams(),
-        apiSource.fetchActivityLogs(),
-        apiSource.fetchSLARules(),
-        apiSource.fetchEscalations(),
-        apiSource.fetchShifts(),
-        apiSource.fetchSchedules(),        
-      ]);
-      setUsers(u);
-      setTeams(t);
-      setActivityLogs(l);
-      setSlaRules(sla);
-      setEscalations(e);
-      setShifts(sh);
-      setSchedules(sc);
+      if (showMockData) {
+        // Use mock JSON files
+        setUsers(mockArtisans);
+        setTeams(mockTeams);
+        setSlaRules(mockSlaRules);
+        setEscalations(mockEscalations);
+        setShifts(mockShifts);
+        setSchedules(mockSchedules);
+        setActivityLogs(mockActivityLogs);
+      } else {
+        // Use API (real backend when hooked)
+        const [u, t, l, sla, e, sh, sc] = await Promise.all([
+          api.fetchUsers(),
+          api.fetchTeams(),
+          api.fetchActivityLogs(),
+          api.fetchSLARules(),
+          api.fetchEscalations(),
+          api.fetchShifts(),
+          api.fetchSchedules(),
+        ]);
+        setUsers(u);
+        setTeams(t);
+        setActivityLogs(l);
+        setSlaRules(sla);
+        setEscalations(e);
+        setShifts(sh);
+        setSchedules(sc);
+      }
     } catch {
       Alert.alert("Error", "Failed to load data");
     } finally {
       setLoading(false);
     }
   };
+
 
   // const loadData = async () => {
   //   try {
@@ -221,29 +261,43 @@ export default function AdminScreen() {
   };
 
   // -------------------- Reusable Components --------------------
-  const Section = ({ title, onManage, children }: any) => (
-    <View 
-      style={[
-        styles.sectionCard,
-        { backgroundColor: themeColors.colors.card, 
-          borderColor: themeColors.colors.border },
-      ]}    
-    >
-      <View style={styles.sectionHeader}>
-        <Text style={[ styles.sectionTitle, { color: themeColors.colors.maintext } ]}>
-          {title}
-        </Text>
-        {onManage && (
-          <TouchableOpacity style={styles.manageBtn} onPress={onManage}>
-            <Text style={styles.manageText}>Manage</Text>
-            <ChevronRight size={14} color="#2563eb" />
+  const Section = ({ title, onManage, children, totalCount, visibleCount  }: any) => {
+    const remaining = Math.max(totalCount - visibleCount, 0);
+    return (
+      <View 
+        style={[
+          styles.sectionCard,
+          { backgroundColor: themeColors.colors.card, 
+            borderColor: themeColors.colors.border },
+        ]}    
+      >
+        <View style={styles.sectionHeader}>
+          <Text style={[ styles.sectionTitle, { color: themeColors.colors.maintext } ]}>
+            {title}
+          </Text>
+          {onManage && (
+            <TouchableOpacity style={styles.manageBtn} onPress={onManage}>
+              <Text style={styles.manageText}>Manage</Text>
+              <ChevronRight size={14} color="#2563eb" />
+            </TouchableOpacity>
+          )}
+        </View>
+        {/* Add a View More link that appears after scrolling a bit, or should wejust add it next to manage in header */}
+        <View style={styles.sectionBody}>{children}</View>
+
+        {remaining > 0 && (
+          <TouchableOpacity style={styles.link} 
+            // onPress={() => navigation.navigate({route})}
+            onPress={onManage}
+          >
+            <Text style={styles.linkText}>
+              View {remaining} more {title} →
+            </Text>
           </TouchableOpacity>
         )}
       </View>
-      {/* Add a View More link that appears after scrolling a bit, or should wejust add it next to manage in header */}
-      <View style={styles.sectionBody}>{children}</View>
-    </View>
-  );
+    );
+  };
 
   // redesign this card for the different datas we have inclduing styling for color which adapts with theme
   // need seperate UserCard, TeamCard, ActivityCard, SLARuleCard, EscallationsCard, ShiftsCard, SchedulesCard, AuditLogCard
@@ -310,21 +364,46 @@ export default function AdminScreen() {
   );  
     
   // -------- Filters
+  // const filteredUsers = useMemo(
+  //   () => users.filter((u) => u.name.toLowerCase().includes(searchQuery.toLowerCase())),
+  //   [users, searchQuery]
+  // );
+  // const filteredTeams = useMemo(
+  //   () => teams.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())),
+  //   [teams, searchQuery]
+  // );
+  // const filteredLogs = useMemo(
+  //   () =>
+  //     [...logs, ...auditLogs].filter((l) =>
+  //       l.description.toLowerCase().includes(searchQuery.toLowerCase())
+  //     ),
+  //   [logs, auditLogs, searchQuery]
+  // );  
+
   const filteredUsers = useMemo(
-    () => users.filter((u) => u.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    () =>
+      users.filter((u) =>
+        (u.name ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+      ),
     [users, searchQuery]
   );
+
   const filteredTeams = useMemo(
-    () => teams.filter((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())),
+    () =>
+      teams.filter((t) =>
+        (t.name ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+      ),
     [teams, searchQuery]
   );
+
   const filteredLogs = useMemo(
     () =>
       [...logs, ...auditLogs].filter((l) =>
-        l.description.toLowerCase().includes(searchQuery.toLowerCase())
+        (l.description ?? "").toLowerCase().includes(searchQuery.toLowerCase())
       ),
     [logs, auditLogs, searchQuery]
-  );  
+  );
+
 
   // add the FAB 
   
@@ -338,7 +417,8 @@ export default function AdminScreen() {
         return (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {/* Maybe make the Sections scrollable, embedded inside */}
-            <Section title="Artisans" onManage={() => navigation.navigate("Artisans")}>
+            <Section title="Artisans" onManage={() => navigation.navigate("Artisans")}
+              totalCount={users.length} visibleCount={3}>
               {users.length === 0
                 ? renderEmpty("people", "No artisans found")
                 : users.slice(0, 3).map((u) => (
@@ -353,7 +433,8 @@ export default function AdminScreen() {
               }
             </Section>
 
-            <Section title="Teams" onManage={() => navigation.navigate("Teams")}>
+            <Section title="Teams" onManage={() => navigation.navigate("Teams")}
+              totalCount={teams.length} visibleCount={2}>
               {teams.length === 0
                 ? renderEmpty("people-circle-outline", "No teams found")
                 : teams.slice(0, 2).map((t) => (
@@ -368,7 +449,8 @@ export default function AdminScreen() {
               }
             </Section>
 
-            <Section title="Recent Activity" onManage={() => navigation.navigate("Activities")}>
+            <Section title="Recent Activity" onManage={() => navigation.navigate("Activities")}
+              totalCount={logs.length} visibleCount={3}>
               {logs.length === 0
                 ? renderEmpty("time-outline", "No activity logs yet")
                 : logs.slice(0, 3).map((l) => (
@@ -384,7 +466,8 @@ export default function AdminScreen() {
       // {activeTab === "sla" && ( <> ...
         return (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            <Section title="SLA Rules" onManage={() => navigation.navigate("SLARules")}>
+            <Section title="SLA Rules" onManage={() => navigation.navigate("SLARules")}
+              totalCount={slaRules.length} visibleCount={3}>
               {slaRules.length === 0
                 ? renderEmpty("document-text-outline", "No SLA rules")
                 : slaRules.slice(0, 3).map((r) => (
@@ -394,7 +477,8 @@ export default function AdminScreen() {
               }
             </Section>
 
-            <Section title="Escalations" onManage={() => navigation.navigate("Escalations")}>
+            <Section title="Escalations" onManage={() => navigation.navigate("Escalations")}
+              totalCount={escalations.length} visibleCount={3}>
               {escalations.length === 0
                 ? renderEmpty("alert-circle-outline", "No escalations yet")
                 : escalations.slice(0, 3).map((e) => (
@@ -408,16 +492,16 @@ export default function AdminScreen() {
               }
             </Section>
             <View style={styles.twoCol}>
-              <Section title="SLA Rules" onManage={() => Alert.alert("To be implemented")}>
-                {slaRules.length === 0
+              <Section title="X" onManage={() => Alert.alert("To be implemented")}>
+                {/* {slaRules.length === 0
                   ? renderEmpty("document-text-outline", "No SLA rules")
                   : slaRules.slice(0, 3).map((r) => (
                       <Card key={r.id} title={r.name} subtitle={r.description} />
-                    ))}
+                    ))} */}
               </Section>
 
-              <Section title="Escalations" onManage={() => Alert.alert("To be implemented")}>
-                {escalations.length === 0
+              <Section title="Y" onManage={() => Alert.alert("To be implemented")}>
+                {/* {escalations.length === 0
                   ? renderEmpty("alert-circle-outline", "No escalations yet")
                   : escalations.slice(0, 3).map((e) => (
                       <Card
@@ -426,7 +510,7 @@ export default function AdminScreen() {
                         subtitle={e.reason}
                         extra={formatTimeAgo(e.createdAt)}
                       />
-                    ))}
+                    ))} */}
               </Section>
             </View>
           </ScrollView>
@@ -436,10 +520,11 @@ export default function AdminScreen() {
       // {activeTab === "shifts" && ( <> ...
         return (
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            <Section title="Schedules" onManage={() => navigation.navigate("Schedules")}>
+            <Section title="Schedules" onManage={() => navigation.navigate("Schedules")}
+              totalCount={schedules.length} visibleCount={3}>
               {schedules.length === 0
                 ? renderEmpty("calendar-outline", "No schedules yet")
-                : schedules.map((s) => (
+                : schedules.slice(0, 3).map((s) => (
                   <Card
                     key={s.id}
                     title={s.title}
@@ -450,10 +535,11 @@ export default function AdminScreen() {
                 }
             </Section>
 
-            <Section title="Shifts" onManage={() => navigation.navigate("Shifts")}>
+            <Section title="Shifts" onManage={() => navigation.navigate("Shifts")}
+              totalCount={shifts.length} visibleCount={3}>
               {shifts.length === 0
                 ? renderEmpty("time-outline", "No shifts assigned")
-                : shifts.map((sh) => (
+                : shifts.slice(0, 3).map((sh) => (
                   <Card
                     key={sh.id}
                     title={sh.name}
@@ -465,13 +551,16 @@ export default function AdminScreen() {
             </Section>
 
             <View style={styles.twoCol}>
-              <Section title="Schedules" onManage={() => Alert.alert("All Schedules")}>
-                {renderEmpty("calendar-outline", "No schedules yet")}
-              </Section>
-
-              <Section title="Shifts" onManage={() => Alert.alert("All Shifts")}>
-                {renderEmpty("time-outline", "No shifts assigned")}
-              </Section>
+              {/* <TouchableOpacity> */}
+                <Section title="Cal" onManage={() => Alert.alert("CalendarView")}>
+                  <TouchableOpacity onPress={() => Alert.alert("CalendarView")}>{renderEmpty("calendar-outline","Calendar")}</TouchableOpacity>
+                </Section>
+              {/* </TouchableOpacity> */}
+              {/* <TouchableOpacity> */}
+                <Section title="Clocks" onManage={() => Alert.alert("ClocksView")}>
+                  <TouchableOpacity onPress={() => Alert.alert("ClocksView")}>{renderEmpty("time-outline", "Clocks")}</TouchableOpacity>
+                </Section>
+              {/* </TouchableOpacity> */}
             </View>
           </ScrollView>
         );
@@ -480,16 +569,20 @@ export default function AdminScreen() {
       case "audit":
       // {activeTab === "audit" && ( <> ...
         return (
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          // <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          <View style={styles.scrollContent}>
             <Section title="Audit Logs" onManage={() => navigation.navigate("AuditLogs")}>
-              {logs.length === 0
-                ? renderEmpty("document-outline", "No audit logs yet")
-                : logs.slice(0, 5).map((l) => (
-                  <Card key={l.id} title={l.description} extra={formatTimeAgo(l.timestamp)} />
-                ))
-              }
+              <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                {logs.length === 0
+                  ? renderEmpty("document-outline", "No audit logs yet")
+                  : logs.map((l) => (
+                    <Card key={l.id} title={l.description} extra={formatTimeAgo(l.timestamp)} />
+                  ))
+                }
+              </ScrollView>
             </Section>
-          </ScrollView>
+          {/* </ScrollView> */}
+          </View>
         );
     }
   };
@@ -728,7 +821,7 @@ export default function AdminScreen() {
             <SparklesIcon size={18} color={themeColors.colors.subtext} />
             <TextInput
               style={styles.searchInput}
-              placeholder={`Ask Eddy about the sys ${activeTab} ...`}
+              placeholder={`Ask Eddy ... ${activeTab} .. presets ...`}
               placeholderTextColor={themeColors.colors.subtext}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -916,5 +1009,17 @@ const styles = StyleSheet.create({
       backgroundColor: '#2f6e9217', 
       marginBottom: 8 
     },
+
+  link: {
+    justifyContent:"center",
+    alignSelf: "center",
+    marginVertical: 8,
+    fontWeight: "500",
+  },
+  linkText:{
+    textAlign: "center",
+    fontSize: 14,
+    // fontWeight: "600",
+    color: "#007AFF",}
 });
 
